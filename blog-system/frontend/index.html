@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>博客系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 全局加载遮罩 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="#" class="nav-brand" onclick="showHome()">
+                <span class="brand-icon">📝</span>
+                <span class="brand-text">博客系统</span>
+            </a>
+            <div class="nav-menu">
+                <a href="#" class="nav-link" onclick="showHome()">首页</a>
+                <a href="#" class="nav-link" onclick="showCategories()">分类</a>
+                <a href="#" class="nav-link" id="myArticlesLink" style="display:none;" onclick="showMyArticles()">我的文章</a>
+                <a href="#" class="nav-link" id="adminLink" style="display:none;" onclick="showAdmin()">管理</a>
+                <div id="authButtons" class="auth-buttons">
+                    <button onclick="showLogin()" class="btn btn-outline-light btn-sm">登录</button>
+                    <button onclick="showRegister()" class="btn btn-light btn-sm">注册</button>
+                </div>
+                <div id="userMenu" class="user-menu" style="display:none;">
+                    <span id="welcomeUser" class="welcome-text"></span>
+                    <button onclick="showNotifications()" class="btn btn-icon">
+                        <span class="icon">🔔</span>
+                        <span id="notifBadge" class="badge"></span>
+                    </button>
+                    <button onclick="logout()" class="btn btn-outline-light btn-sm">退出</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container main-content">
+        <!-- 首页 -->
+        <div id="homePage" class="page">
+            <div class="card">
+                <div class="card-body">
+                    <div class="search-section">
+                        <div class="input-group">
+                            <input type="text" id="searchInput" class="form-control" placeholder="搜索文章..." onkeypress="handleSearch(event)">
+                            <button onclick="performSearch()" class="btn btn-primary">搜索</button>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <select id="categoryFilter" class="form-select form-select-sm" onchange="filterArticles()">
+                            <option value="">全部分类</option>
+                        </select>
+                        <select id="tagFilter" class="form-select form-select-sm" onchange="filterArticles()">
+                            <option value="">全部标签</option>
+                        </select>
+                        <button id="createArticleBtn" style="display:none;" onclick="showCreateArticle()" class="btn btn-success btn-sm">
+                            ✍️ 写文章
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="articleList" class="article-list"></div>
+        </div>
+
+        <!-- 文章详情页 -->
+        <div id="articleDetailPage" class="page" style="display:none;">
+            <button onclick="showHome()" class="btn btn-secondary btn-sm mb-3">← 返回列表</button>
+            <div class="card">
+                <article id="articleDetail" class="card-body article-detail"></article>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-body comments-section">
+                    <h5 class="card-title">💬 评论区</h5>
+                    <div id="commentForm" style="display:none;" class="comment-form">
+                        <textarea id="commentContent" class="form-control" placeholder="写下你的评论..." rows="3"></textarea>
+                        <button onclick="submitComment()" class="btn btn-primary btn-sm mt-2">发表评论</button>
+                    </div>
+                    <div id="loginPrompt" class="login-prompt" style="display:none;">
+                        <p>请先<a href="#" onclick="showLogin()">登录</a>后再发表评论</p>
+                    </div>
+                    <div id="commentList" class="comment-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 创建/编辑文章页 -->
+        <div id="articleFormPage" class="page" style="display:none;">
+            <button onclick="cancelArticleForm()" class="btn btn-secondary btn-sm mb-3">← 取消</button>
+            <div class="card">
+                <div class="card-header">
+                    <h5 id="articleFormTitle" class="mb-0">创建文章</h5>
+                </div>
+                <div class="card-body">
+                    <form id="articleForm" onsubmit="submitArticle(event)">
+                        <input type="hidden" id="articleId">
+                        <div class="form-group">
+                            <label class="form-label">标题 <span class="required">*</span></label>
+                            <input type="text" id="articleTitle" class="form-control" required>
+                        </div>
+                        <div class="row">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label class="form-label">分类</label>
+                                    <input type="text" id="articleCategory" class="form-control" placeholder="例如：技术、生活">
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="form-group">
+                                    <label class="form-label">标签</label>
+                                    <input type="text" id="articleTags" class="form-control" placeholder="用逗号分隔">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">封面图片URL</label>
+                            <input type="text" id="articleCover" class="form-control" placeholder="https://...">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">内容 <span class="required">*</span></label>
+                            <textarea id="articleContent" class="form-control" rows="12" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">发布文章</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 登录页 -->
+        <div id="loginPage" class="page auth-page" style="display:none;">
+            <div class="auth-card">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h5 class="mb-0">用户登录</h5>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="login(event)">
+                            <div class="form-group">
+                                <label class="form-label">用户名或邮箱</label>
+                                <input type="text" id="loginUsername" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">密码</label>
+                                <input type="password" id="loginPassword" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">登录</button>
+                        </form>
+                        <p class="text-center mt-3 mb-0">还没有账号？<a href="#" onclick="showRegister()">立即注册</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 注册页 -->
+        <div id="registerPage" class="page auth-page" style="display:none;">
+            <div class="auth-card">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h5 class="mb-0">用户注册</h5>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="register(event)">
+                            <div class="form-group">
+                                <label class="form-label">用户名</label>
+                                <input type="text" id="registerUsername" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">邮箱</label>
+                                <input type="email" id="registerEmail" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">密码</label>
+                                <input type="password" id="registerPassword" class="form-control" required minlength="6">
+                                <small class="form-text text-muted">密码至少6个字符</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">注册</button>
+                        </form>
+                        <p class="text-center mt-3 mb-0">已有账号？<a href="#" onclick="showLogin()">立即登录</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 通知页 -->
+        <div id="notificationPage" class="page" style="display:none;">
+            <button onclick="showHome()" class="btn btn-secondary btn-sm mb-3">← 返回</button>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">🔔 通知中心</h5>
+                </div>
+                <div class="card-body">
+                    <div id="notificationList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理页 -->
+        <div id="adminPage" class="page" style="display:none;">
+            <button onclick="showHome()" class="btn btn-secondary btn-sm mb-3">← 返回</button>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">⚙️ 管理中心</h5>
+                </div>
+                <div class="card-body">
+                    <div class="admin-tabs">
+                        <button onclick="showAdminUsers()" class="tab-btn active">用户管理</button>
+                        <button onclick="showAdminComments()" class="tab-btn">评论审核</button>
+                    </div>
+                    <div id="adminContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
