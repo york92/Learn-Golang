@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>医院排班管理系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Root ─────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#1c2128;--surf3:#21262d;
+  --border:#30363d;--border2:#3d444d;
+  --txt:#e6edf3;--muted:#8b949e;--dim:#484f58;
+  --blue:#2f81f7;--blue-bg:#1f6feb22;--blue-bdr:#1f6feb55;
+  --green:#3fb950;--green-bg:#196c2e33;--green-bdr:#196c2e88;
+  --red:#f85149;--red-bg:#6d1a1633;--red-bdr:#6d1a1688;
+  --yellow:#d29922;--yellow-bg:#5c3d0233;--yellow-bdr:#5c3d0288;
+  --purple:#a371f7;--purple-bg:#3d1f7333;--purple-bdr:#3d1f7388;
+  --cyan:#39c5cf;--cyan-bg:#0e4a5033;--cyan-bdr:#0e4a5088;
+  --orange:#db6d28;
+  --r:6px;--rl:10px;--mono:'JetBrains Mono',monospace;--sans:'Noto Sans SC',sans-serif;
+  --sw:224px;--hh:52px;--tr:0.14s ease;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:13px;line-height:1.5}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+a{color:var(--blue);text-decoration:none}
+
+/* ─── Layout ────────────────────────────────────────────────────────────── */
+#app{display:flex;height:100vh}
+#sidebar{width:var(--sw);min-width:var(--sw);background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.content{flex:1;overflow-y:auto;padding:20px}
+
+/* ─── Sidebar ───────────────────────────────────────────────────────────── */
+.logo{padding:15px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#2f81f7,#a371f7);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;box-shadow:0 2px 8px #2f81f740}
+.logo-name{font-size:13px;font-weight:700;line-height:1.2}
+.logo-sub{font-size:10px;color:var(--muted)}
+.nav-group{padding:6px 0;border-bottom:1px solid var(--border)}
+.nav-label{font-size:10px;font-weight:700;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;padding:5px 16px 3px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:pointer;color:var(--muted);border-left:2px solid transparent;transition:all var(--tr);user-select:none;font-size:12.5px;position:relative}
+.nav-item:hover{color:var(--txt);background:var(--surf3)}
+.nav-item.active{color:var(--blue);background:var(--blue-bg);border-left-color:var(--blue);font-weight:500}
+.nav-icon{font-size:14px;width:17px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:16px;text-align:center}
+
+/* API连接区 */
+.api-zone{margin-top:auto;padding:12px 14px;border-top:1px solid var(--border)}
+.api-row{display:flex;gap:5px;margin-bottom:7px}
+.api-input{flex:1;background:var(--surf3);border:1px solid var(--border);color:var(--muted);padding:4px 8px;border-radius:4px;font-family:var(--mono);font-size:10px;outline:none}
+.api-input:focus{border-color:var(--blue);color:var(--txt)}
+.api-btn{padding:4px 8px;font-size:10px;font-weight:700;background:var(--blue);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:opacity var(--tr);white-space:nowrap}
+.api-btn:hover{opacity:.85}
+.conn-row{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:all var(--tr)}
+.dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot.err{background:var(--red)}
+.dot.spin{background:var(--yellow);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ─── Topbar ────────────────────────────────────────────────────────────── */
+.topbar{height:var(--hh);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;flex-shrink:0;background:var(--surf)}
+.topbar-title{font-size:14px;font-weight:700;flex:1}
+.topbar-tag{font-size:9px;font-family:var(--mono);background:var(--surf3);color:var(--muted);border:1px solid var(--border);padding:2px 8px;border-radius:10px;letter-spacing:.05em}
+
+/* ─── Page system ───────────────────────────────────────────────────────── */
+.page{display:none}.page.active{display:block}
+
+/* ─── Cards / Panels ────────────────────────────────────────────────────── */
+.panel{background:var(--surf);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:16px}
+.ph{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surf2)}
+.ph-title{font-size:13px;font-weight:700;flex:1}
+.pb{padding:16px}
+.pf{padding:10px 16px;border-top:1px solid var(--border);background:var(--surf2);display:flex;gap:8px;align-items:center}
+
+/* ─── Grid ──────────────────────────────────────────────────────────────── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* ─── Stat cards ────────────────────────────────────────────────────────── */
+.stat{background:var(--surf);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat.blue::before{background:var(--blue)}.stat.green::before{background:var(--green)}
+.stat.yellow::before{background:var(--yellow)}.stat.purple::before{background:var(--purple)}
+.stat.red::before{background:var(--red)}.stat.cyan::before{background:var(--cyan)}
+.stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.stat-v{font-size:28px;font-family:var(--mono);font-weight:600;line-height:1}
+.stat-s{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ─── Form ──────────────────────────────────────────────────────────────── */
+.frow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:110px}
+.fg.auto{flex:0 0 auto}
+.fg label{font-size:11px;color:var(--muted);font-weight:500}
+input,select,textarea{background:var(--surf3);border:1px solid var(--border);color:var(--txt);padding:6px 10px;border-radius:var(--r);font-family:var(--sans);font-size:12px;outline:none;transition:border-color var(--tr);width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+select option{background:var(--surf2)}
+textarea{resize:vertical;min-height:68px}
+input[type=number]{-moz-appearance:textfield}
+
+/* ─── Buttons ───────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border:none;border-radius:var(--r);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all var(--tr);text-decoration:none}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-sm{padding:4px 9px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:10px}
+.btn-p{background:var(--blue);color:#fff}
+.btn-p:hover:not(:disabled){background:#388bfd}
+.btn-s{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bdr)}
+.btn-s:hover:not(:disabled){background:#196c2e55}
+.btn-d{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bdr)}
+.btn-d:hover:not(:disabled){background:#6d1a1655}
+.btn-g{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-g:hover:not(:disabled){border-color:var(--border2);color:var(--txt)}
+.btn-w{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-bdr)}
+.btn-w:hover:not(:disabled){background:#5c3d0255}
+
+/* ─── Tables ────────────────────────────────────────────────────────────── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:var(--surf2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surf2)}
+.mono{font-family:var(--mono);font-size:11px}
+
+/* ─── Badges ────────────────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid}
+.b-blue{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bdr)}
+.b-green{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+.b-red{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
+.b-yellow{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-bdr)}
+.b-purple{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bdr)}
+.b-cyan{background:var(--cyan-bg);color:var(--cyan);border-color:var(--cyan-bdr)}
+.b-gray{background:var(--surf3);color:var(--muted);border-color:var(--border)}
+
+/* ─── Qual tags ─────────────────────────────────────────────────────────── */
+.qtag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;border:1px solid;margin:1px}
+.q-ICU{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bdr)}
+.q-EMERGENCY{background:var(--red-bg);color:var(--red);border-color:var(--red-bdr)}
+.q-SURGERY{background:var(--purple-bg);color:var(--purple);border-color:var(--purple-bdr)}
+.q-PEDIATRICS{background:var(--cyan-bg);color:var(--cyan);border-color:var(--cyan-bdr)}
+.q-GENERAL{background:var(--surf3);color:var(--muted);border-color:var(--border)}
+
+/* ─── Toast ─────────────────────────────────────────────────────────────── */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 15px;border-radius:var(--r);font-size:12px;font-weight:500;background:var(--surf2);border:1px solid var(--border);max-width:360px;box-shadow:0 4px 20px #00000066;animation:tin .2s ease;pointer-events:auto}
+.toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}
+.toast.warn{border-left:3px solid var(--yellow)}.toast.info{border-left:3px solid var(--blue)}
+@keyframes tin{from{transform:translateX(16px);opacity:0}}
+
+/* ─── Alert boxes ───────────────────────────────────────────────────────── */
+.alert{border-radius:var(--r);padding:10px 13px;margin:10px 0;font-size:12px;border:1px solid}
+.alert-err{background:var(--red-bg);border-color:var(--red-bdr)}
+.alert-warn{background:var(--yellow-bg);border-color:var(--yellow-bdr)}
+.alert-ok{background:var(--green-bg);border-color:var(--green-bdr)}
+.alert-title{font-weight:700;margin-bottom:5px}
+.alert-err .alert-title{color:var(--red)}.alert-warn .alert-title{color:var(--yellow)}.alert-ok .alert-title{color:var(--green)}
+.viol-item{padding:2px 0;color:#fca5a5}.alert-warn .viol-item{color:#fde68a}.alert-ok .viol-item{color:#86efac}
+
+/* ─── Modal ─────────────────────────────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:#00000088;z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal{background:var(--surf);border:1px solid var(--border);border-radius:var(--rl);width:500px;max-width:96vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px #000000aa;animation:min .17s ease}
+@keyframes min{from{transform:scale(.95);opacity:0}}
+.mh{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.mh-title{font-size:14px;font-weight:700;flex:1}
+.mclose{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;color:var(--muted);font-size:16px;transition:all var(--tr)}
+.mclose:hover{background:var(--surf3);color:var(--txt)}
+.mb{padding:18px}
+.mf{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* ─── Check chips ───────────────────────────────────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:4px;background:var(--surf3);border:1px solid var(--border);cursor:pointer;transition:all var(--tr);font-size:11px;font-weight:600;user-select:none}
+.chip:hover{border-color:var(--blue)}.chip.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.chip input{display:none}
+
+/* ─── Schedule grid ─────────────────────────────────────────────────────── */
+.sg-wrap{overflow-x:auto}
+.sg{display:grid;font-size:11px;border-left:1px solid var(--border);border-top:1px solid var(--border)}
+.sg-head{background:var(--surf2);padding:6px 8px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.sg-row-lbl{background:var(--surf2);padding:6px 10px;font-weight:600;color:var(--muted);font-size:11px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.sg-cell{padding:3px;min-height:54px;background:var(--surf);border-right:1px solid var(--border);border-bottom:1px solid var(--border);vertical-align:top}
+.sg-cell:hover{background:var(--surf3)}
+.slot-chip{padding:2px 6px;border-radius:4px;margin-bottom:2px;font-size:10px;display:flex;align-items:center;gap:4px;cursor:pointer;border:1px solid}
+.slot-chip.open{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bdr)}
+.slot-chip.filled{background:var(--green-bg);color:var(--green);border-color:var(--green-bdr)}
+.slot-chip.partial{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-bdr)}
+
+/* ─── Workload bar ──────────────────────────────────────────────────────── */
+.wb-row{display:flex;align-items:center;gap:8px}
+.wb-bg{flex:1;height:6px;background:var(--surf3);border-radius:3px;overflow:hidden}
+.wb-fill{height:100%;border-radius:3px;transition:width .4s ease}
+.wb-n{background:var(--green)}.wb-w{background:var(--yellow)}.wb-o{background:var(--red)}
+
+/* ─── Tabs ──────────────────────────────────────────────────────────────── */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{padding:8px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--tr);user-select:none}
+.tab:hover{color:var(--txt)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ─── Utility ───────────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:36px 20px;color:var(--dim)}
+.empty-ico{font-size:32px;opacity:.35;margin-bottom:8px}
+.loading{text-align:center;padding:28px;color:var(--muted)}
+.spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:rot .7s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes rot{to{transform:rotate(360deg)}}
+.mt8{margin-top:8px}.mb8{margin-bottom:8px}.mt12{margin-top:12px}
+.muted{color:var(--muted)}.dim{color:var(--dim)}.small{font-size:11px}
+.row{display:flex;gap:8px;align-items:center}
+hr.sep{border:none;border-top:1px solid var(--border);margin:14px 0}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ════════════ SIDEBAR ════════════ -->
+<nav id="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🏥</div>
+    <div>
+      <div class="logo-name">排班管理系统</div>
+      <div class="logo-sub">Hospital Scheduler</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-label">总览</div>
+    <div class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span>仪表板</div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">排班</div>
+    <div class="nav-item" data-page="calendar"><span class="nav-icon">📅</span>排班日历</div>
+    <div class="nav-item" data-page="slots"><span class="nav-icon">🕐</span>班次格管理</div>
+    <div class="nav-item" data-page="assign"><span class="nav-icon">✍️</span>手动排班</div>
+    <div class="nav-item" data-page="auto"><span class="nav-icon">⚡</span>自动排班</div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">人员</div>
+    <div class="nav-item" data-page="staff"><span class="nav-icon">👤</span>员工管理</div>
+    <div class="nav-item" data-page="dept"><span class="nav-icon">🏢</span>科室管理</div>
+    <div class="nav-item" data-page="workload"><span class="nav-icon">📈</span>工时报表</div>
+  </div>
+  <div class="nav-group">
+    <div class="nav-label">调度</div>
+    <div class="nav-item" data-page="emergency"><span class="nav-icon">🚨</span>应急调度</div>
+    <div class="nav-item" data-page="swaps">
+      <span class="nav-icon">🔄</span>换班申请
+      <span class="nav-badge" id="swap-badge" style="display:none">0</span>
+    </div>
+  </div>
+
+  <div class="api-zone">
+    <div class="api-row">
+      <input class="api-input" id="api-input" value="http://localhost:8080" placeholder="http://localhost:8080">
+      <button class="api-btn" onclick="connect()">连接</button>
+    </div>
+    <div class="conn-row">
+      <div class="dot" id="dot"></div>
+      <span id="conn-txt">未连接</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════════ MAIN ════════════ -->
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-title" id="pg-title">仪表板</div>
+    <div class="topbar-tag" id="pg-tag">DASHBOARD</div>
+  </div>
+  <div class="content">
+
+    <!-- ──────── DASHBOARD ──────── -->
+    <div class="page active" id="page-dashboard">
+      <div class="g4 mb8" id="dash-stats">
+        <div class="stat blue"><div class="stat-l">员工总数</div><div class="stat-v" id="ds-staff">—</div><div class="stat-s">活跃员工</div></div>
+        <div class="stat green"><div class="stat-l">本周班次格</div><div class="stat-v" id="ds-slots">—</div><div class="stat-s">本周排班格</div></div>
+        <div class="stat yellow"><div class="stat-l">待审换班</div><div class="stat-v" id="ds-swaps">—</div><div class="stat-s">等待审批</div></div>
+        <div class="stat purple"><div class="stat-l">科室数量</div><div class="stat-v" id="ds-depts">—</div><div class="stat-s">已建科室</div></div>
+      </div>
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><span>👥</span><span class="ph-title">员工列表</span><button class="btn btn-g btn-sm" onclick="nav('staff')">全部</button></div>
+          <div id="dash-staff"><div class="loading"><span class="spin"></span>加载中…</div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><span>🔄</span><span class="ph-title">待审换班申请</span><button class="btn btn-g btn-sm" onclick="nav('swaps')">全部</button></div>
+          <div id="dash-swaps"><div class="loading"><span class="spin"></span>加载中…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── CALENDAR ──────── -->
+    <div class="page" id="page-calendar">
+      <div class="panel">
+        <div class="ph"><span>📅</span><span class="ph-title">排班日历</span></div>
+        <div class="pb">
+          <div class="frow mb8">
+            <div class="fg auto"><label>科室</label>
+              <select id="cal-dept" style="width:130px" onchange="loadCal()"><option value="">全部</option></select></div>
+            <div class="fg auto"><label>开始日期</label><input type="date" id="cal-from" style="width:140px" onchange="loadCal()"></div>
+            <div class="fg auto"><label>结束日期</label><input type="date" id="cal-to" style="width:140px" onchange="loadCal()"></div>
+            <div class="fg auto"><label>&nbsp;</label>
+              <div class="row"><button class="btn btn-g btn-sm" onclick="calShift(-1)">◀ 上周</button><button class="btn btn-g btn-sm" onclick="calShift(0)">本周</button><button class="btn btn-g btn-sm" onclick="calShift(1)">下周 ▶</button></div>
+            </div>
+          </div>
+          <div class="sg-wrap"><div id="cal-grid"><div class="loading"><span class="spin"></span>加载排班数据…</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── SLOTS ──────── -->
+    <div class="page" id="page-slots">
+      <div class="panel">
+        <div class="ph"><span>🕐</span><span class="ph-title">班次格管理</span><button class="btn btn-p btn-sm" onclick="openSlotModal()">+ 新建班次格</button></div>
+        <div class="pb">
+          <div class="frow mb8">
+            <div class="fg"><label>科室</label><select id="sl-dept" onchange="loadSlots()"><option value="">全部</option></select></div>
+            <div class="fg"><label>开始日期</label><input type="date" id="sl-from" onchange="loadSlots()"></div>
+            <div class="fg"><label>结束日期</label><input type="date" id="sl-to" onchange="loadSlots()"></div>
+            <div class="fg auto"><label>&nbsp;</label><button class="btn btn-g btn-sm" onclick="loadSlots()">🔍 查询</button></div>
+          </div>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>ID</th><th>科室</th><th>班次</th><th>日期</th><th>角色</th><th>资质要求</th><th>需求/已排</th><th>状态</th></tr></thead>
+          <tbody id="slots-tb"><tr><td colspan="8"><div class="loading"><span class="spin"></span></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ──────── ASSIGN ──────── -->
+    <div class="page" id="page-assign">
+      <div class="g2">
+        <!-- 左：表单 -->
+        <div>
+          <div class="panel">
+            <div class="ph"><span>✍️</span><span class="ph-title">手动排班</span></div>
+            <div class="pb">
+              <div class="fg mb8"><label>选择员工</label><select id="as-staff"></select></div>
+              <div class="fg mb8"><label>选择班次格（仅显示未满员）</label><select id="as-slot"></select></div>
+              <div class="fg mb8"><label>备注（可选）</label><input type="text" id="as-note" placeholder="备注说明"></div>
+              <div id="as-result"></div>
+            </div>
+            <div class="pf">
+              <button class="btn btn-p" onclick="doAssign()">✓ 确认排班</button>
+              <button class="btn btn-g" onclick="initAssignPage()">↺ 刷新列表</button>
+            </div>
+          </div>
+        </div>
+        <!-- 右：近期排班记录 -->
+        <div>
+          <div class="panel">
+            <div class="ph"><span>📋</span><span class="ph-title">近期排班记录</span>
+              <button class="btn btn-g btn-sm" onclick="loadAssignRecords()">刷新</button></div>
+            <div class="tw"><table>
+              <thead><tr><th>ID</th><th>员工</th><th>班次格</th><th>日期</th><th>来源</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody id="as-records"><tr><td colspan="7"><div class="loading"><span class="spin"></span></div></td></tr></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── AUTO ──────── -->
+    <div class="page" id="page-auto">
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><span>⚡</span><span class="ph-title">自动排班</span></div>
+          <div class="pb">
+            <p class="muted small mb8">系统按工时均衡原则，自动为选定科室和日期范围内所有 <b>OPEN</b> 班次格分配合规人员，违反硬规则的自动跳过并标记缺口。</p>
+            <div class="fg mb8"><label>目标科室</label><select id="au-dept"></select></div>
+            <div class="frow mb8">
+              <div class="fg"><label>开始日期</label><input type="date" id="au-from"></div>
+              <div class="fg"><label>结束日期</label><input type="date" id="au-to"></div>
+            </div>
+          </div>
+          <div class="pf"><button class="btn btn-p" id="au-btn" onclick="doAutoSched()">⚡ 开始自动排班</button></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><span>📊</span><span class="ph-title">执行结果</span></div>
+          <div class="pb" id="au-result">
+            <div class="empty"><div class="empty-ico">⚡</div>执行后结果显示于此</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── STAFF ──────── -->
+    <div class="page" id="page-staff">
+      <div class="panel">
+        <div class="ph"><span>👤</span><span class="ph-title">员工管理</span>
+          <button class="btn btn-p btn-sm" onclick="openStaffModal()">+ 新增员工</button></div>
+        <div class="tw"><table>
+          <thead><tr><th>工号</th><th>姓名</th><th>角色</th><th>科室</th><th>资质</th><th>状态</th></tr></thead>
+          <tbody id="staff-tb"><tr><td colspan="6"><div class="loading"><span class="spin"></span></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ──────── DEPT ──────── -->
+    <div class="page" id="page-dept">
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><span>🏢</span><span class="ph-title">新建科室</span></div>
+          <div class="pb">
+            <div class="fg mb8"><label>科室名称</label><input id="dp-name" placeholder="如：内科、外科、ICU"></div>
+            <div class="fg mb8"><label>科室代码（英文大写）</label><input id="dp-code" placeholder="如：NEI、WAI、ICU"></div>
+          </div>
+          <div class="pf"><button class="btn btn-p" onclick="createDept()">创建科室</button></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><span>📋</span><span class="ph-title">科室列表</span>
+            <button class="btn btn-g btn-sm" onclick="loadDepts()">刷新</button></div>
+          <div class="tw"><table>
+            <thead><tr><th>ID</th><th>名称</th><th>代码</th><th>状态</th></tr></thead>
+            <tbody id="dept-tb"><tr><td colspan="4"><div class="loading"><span class="spin"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── WORKLOAD ──────── -->
+    <div class="page" id="page-workload">
+      <div class="panel">
+        <div class="ph"><span>📈</span><span class="ph-title">工时报表</span>
+          <div class="fg auto" style="margin:0">
+            <select id="wl-dept" style="width:150px" onchange="loadWorkload()"><option value="">选择科室</option></select>
+          </div>
+          <button class="btn btn-g btn-sm" onclick="loadWorkload()">刷新</button>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>员工</th><th>角色</th><th>月工时</th><th>周工时</th><th>夜班次数</th><th>连续班次</th><th>与均值偏差</th><th>工时进度</th></tr></thead>
+          <tbody id="wl-tb"><tr><td colspan="8"><div class="empty"><div class="empty-ico">📈</div>请先选择科室</div></td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ──────── EMERGENCY ──────── -->
+    <div class="page" id="page-emergency">
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><span>🔍</span><span class="ph-title">查找候选替班人员</span></div>
+          <div class="pb">
+            <div class="fg mb8"><label>缺岗班次格 Slot ID</label>
+              <input type="number" id="em-slot-id" placeholder="输入 Slot ID" min="1"></div>
+            <div id="em-cands"></div>
+          </div>
+          <div class="pf"><button class="btn btn-w" onclick="findCandidates()">🔍 查找候选人</button></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><span>🚨</span><span class="ph-title">应急分配</span></div>
+          <div class="pb">
+            <div class="fg mb8"><label>员工</label><select id="em-staff"></select></div>
+            <div class="fg mb8"><label>班次格 Slot ID</label>
+              <input type="number" id="em-assign-slot" placeholder="Slot ID" min="1"></div>
+            <div class="fg mb8"><label>应急原因</label>
+              <input type="text" id="em-note" placeholder="说明应急原因"></div>
+            <div id="em-assign-result"></div>
+          </div>
+          <div class="pf"><button class="btn btn-d" onclick="doEmergAssign()">🚨 立即应急分配</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── SWAPS ──────── -->
+    <div class="page" id="page-swaps">
+      <div class="tabs">
+        <div class="tab active" data-tab="pending" onclick="swapTab('pending')">待审申请</div>
+        <div class="tab" data-tab="create" onclick="swapTab('create')">提交申请</div>
+      </div>
+      <div id="sw-tab-pending">
+        <div class="panel">
+          <div class="ph"><span>🔄</span><span class="ph-title">待审换班申请</span>
+            <button class="btn btn-g btn-sm" onclick="loadSwaps()">刷新</button></div>
+          <div class="tw"><table>
+            <thead><tr><th>ID</th><th>申请人</th><th>班次格</th><th>接替人</th><th>原因</th><th>申请时间</th><th>操作</th></tr></thead>
+            <tbody id="sw-tb"><tr><td colspan="7"><div class="loading"><span class="spin"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+      <div id="sw-tab-create" style="display:none">
+        <div class="panel" style="max-width:520px">
+          <div class="ph"><span>📝</span><span class="ph-title">提交换班申请</span></div>
+          <div class="pb">
+            <div class="fg mb8"><label>申请人</label><select id="sw-req"></select></div>
+            <div class="fg mb8"><label>要转让的班次格 ID</label>
+              <input type="number" id="sw-slot" placeholder="Slot ID" min="1"></div>
+            <div class="fg mb8"><label>指定接替人（可选，空则公开换班）</label>
+              <select id="sw-target"><option value="">不指定（公开换班）</option></select></div>
+            <div class="fg mb8"><label>换班原因</label>
+              <textarea id="sw-reason" placeholder="请说明原因…"></textarea></div>
+          </div>
+          <div class="pf"><button class="btn btn-p" onclick="submitSwap()">提交申请</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<div id="toasts"></div>
+
+<!-- ════════ MODAL: Staff ════════ -->
+<div class="overlay" id="m-staff" style="display:none" onclick="if(event.target===this)closeM('m-staff')">
+  <div class="modal">
+    <div class="mh"><div class="mh-title">新增员工</div><div class="mclose" onclick="closeM('m-staff')">✕</div></div>
+    <div class="mb">
+      <div class="frow mb8">
+        <div class="fg"><label>工号</label><input id="ms-no" placeholder="D001"></div>
+        <div class="fg"><label>姓名</label><input id="ms-name" placeholder="张医生"></div>
+      </div>
+      <div class="frow mb8">
+        <div class="fg"><label>角色</label>
+          <select id="ms-role"><option value="DOCTOR">医生 DOCTOR</option><option value="NURSE">护士 NURSE</option><option value="INTERN">实习生 INTERN</option></select></div>
+        <div class="fg"><label>所属科室</label><select id="ms-dept"></select></div>
+      </div>
+      <div class="fg mb8"><label>资质（可多选）</label>
+        <div class="chips mt8" id="ms-quals">
+          <label class="chip"><input type="checkbox" value="ICU">ICU</label>
+          <label class="chip"><input type="checkbox" value="EMERGENCY">EMERGENCY</label>
+          <label class="chip"><input type="checkbox" value="SURGERY">SURGERY</label>
+          <label class="chip"><input type="checkbox" value="PEDIATRICS">PEDIATRICS</label>
+          <label class="chip"><input type="checkbox" value="GENERAL">GENERAL</label>
+        </div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeM('m-staff')">取消</button><button class="btn btn-p" onclick="createStaff()">创建</button></div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: Slot ════════ -->
+<div class="overlay" id="m-slot" style="display:none" onclick="if(event.target===this)closeM('m-slot')">
+  <div class="modal">
+    <div class="mh"><div class="mh-title">新建班次格</div><div class="mclose" onclick="closeM('m-slot')">✕</div></div>
+    <div class="mb">
+      <div class="frow mb8">
+        <div class="fg"><label>科室</label><select id="msl-dept"></select></div>
+        <div class="fg"><label>班次类型</label><select id="msl-type"></select></div>
+      </div>
+      <div class="frow mb8">
+        <div class="fg"><label>日期</label><input type="date" id="msl-date"></div>
+        <div class="fg"><label>需求人数</label><input type="number" id="msl-count" value="1" min="1" max="20"></div>
+      </div>
+      <div class="frow mb8">
+        <div class="fg"><label>角色要求</label>
+          <select id="msl-role"><option value="DOCTOR">医生 DOCTOR</option><option value="NURSE">护士 NURSE</option><option value="INTERN">实习生 INTERN</option></select></div>
+      </div>
+      <div class="fg mb8"><label>资质要求（可多选）</label>
+        <div class="chips mt8" id="msl-quals">
+          <label class="chip"><input type="checkbox" value="ICU">ICU</label>
+          <label class="chip"><input type="checkbox" value="EMERGENCY">EMERGENCY</label>
+          <label class="chip"><input type="checkbox" value="SURGERY">SURGERY</label>
+          <label class="chip"><input type="checkbox" value="PEDIATRICS">PEDIATRICS</label>
+          <label class="chip"><input type="checkbox" value="GENERAL">GENERAL</label>
+        </div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeM('m-slot')">取消</button><button class="btn btn-p" onclick="createSlot()">创建</button></div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: Swap Review ════════ -->
+<div class="overlay" id="m-review" style="display:none" onclick="if(event.target===this)closeM('m-review')">
+  <div class="modal">
+    <div class="mh"><div class="mh-title">审批换班申请</div><div class="mclose" onclick="closeM('m-review')">✕</div></div>
+    <div class="mb">
+      <div id="review-info" class="mb8"></div>
+      <div class="fg"><label>审批意见</label><textarea id="review-note" placeholder="请填写审批意见…"></textarea></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-g" onclick="closeM('m-review')">取消</button>
+      <button class="btn btn-d" onclick="doReview('reject')">✗ 拒绝</button>
+      <button class="btn btn-s" onclick="doReview('approve')">✓ 批准</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: Slot Detail ════════ -->
+<div class="overlay" id="m-slotdetail" style="display:none" onclick="if(event.target===this)closeM('m-slotdetail')">
+  <div class="modal">
+    <div class="mh"><div class="mh-title" id="sd-title">班次格详情</div><div class="mclose" onclick="closeM('m-slotdetail')">✕</div></div>
+    <div class="mb" id="sd-body"><div class="loading"><span class="spin"></span></div></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ════════════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════════ */
+let API = 'http://localhost:8080';
+let _depts = [], _shifts = [], _staff = [];
+let _curSwapID = null;
+let _curPage = 'dashboard';
+
+/* ════════════════════════════════════════════════════════════
+   HTTP
+════════════════════════════════════════════════════════════ */
+async function api(method, path, body) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body != null) opts.body = JSON.stringify(body);
+    const r = await fetch(API + path, opts);
+    const j = await r.json();
+    return { ok: r.ok, status: r.status, data: j };
+  } catch(e) { return { ok: false, status: 0, data: null, _err: e.message }; }
+}
+const GET  = p    => api('GET',    p);
+const POST = (p,b)=> api('POST',   p, b);
+const DEL  = p    => api('DELETE', p);
+
+/* ════════════════════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════════════════════ */
+function toast(msg, type='info', ms=3500) {
+  const c = document.getElementById('toasts');
+  const t = Object.assign(document.createElement('div'), { className:`toast ${type}`, textContent: msg });
+  c.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+/* ════════════════════════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════════════════════════ */
+const PAGE_META = {
+  dashboard:{ title:'仪表板',      tag:'DASHBOARD' },
+  calendar: { title:'排班日历',    tag:'CALENDAR'  },
+  slots:    { title:'班次格管理',  tag:'SLOTS'     },
+  assign:   { title:'手动排班',    tag:'ASSIGN'    },
+  auto:     { title:'自动排班',    tag:'AUTO-SCHED'},
+  staff:    { title:'员工管理',    tag:'STAFF'     },
+  dept:     { title:'科室管理',    tag:'DEPTS'     },
+  workload: { title:'工时报表',    tag:'WORKLOAD'  },
+  emergency:{ title:'应急调度',    tag:'EMERGENCY' },
+  swaps:    { title:'换班申请',    tag:'SWAPS'     },
+};
+
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const m = PAGE_META[page] || { title: page, tag: page.toUpperCase() };
+  document.getElementById('pg-title').textContent = m.title;
+  document.getElementById('pg-tag').textContent   = m.tag;
+  _curPage = page;
+  onEnter(page);
+}
+
+function onEnter(page) {
+  ({
+    dashboard: loadDashboard,
+    calendar:  initCalendar,
+    slots:     loadSlots,
+    assign:    initAssignPage,
+    auto:      initAutoPage,
+    staff:     loadStaff,
+    dept:      loadDepts,
+    workload:  () => { fillSel('wl-dept', _depts); },
+    emergency: () => { fillSel('em-staff', _staff, s => `${s.name}（${s.role}）`); },
+    swaps:     loadSwaps,
+  }[page] || (() => {}))();
+}
+
+document.querySelectorAll('.nav-item').forEach(el =>
+  el.addEventListener('click', () => nav(el.dataset.page)));
+
+/* ════════════════════════════════════════════════════════════
+   CONNECT / BOOTSTRAP
+════════════════════════════════════════════════════════════ */
+async function connect() {
+  const raw = document.getElementById('api-input').value.trim().replace(/\/$/, '');
+  API = raw;
+  setConn('spin', '连接中…');
+  const r = await GET('/health');
+  if (r.ok) {
+    setConn('ok', '已连接');
+    toast('连接成功 ' + API, 'ok');
+    await bootstrap();
+  } else {
+    setConn('err', '连接失败');
+    toast('无法连接到 ' + API, 'err');
+  }
+}
+
+function setConn(state, txt) {
+  document.getElementById('dot').className = 'dot ' + state;
+  document.getElementById('conn-txt').textContent = txt;
+}
+
+async function bootstrap() {
+  const [d, s, st] = await Promise.all([
+    GET('/api/v1/departments'),
+    GET('/api/v1/staff'),
+    GET('/api/v1/shift-types'),
+  ]);
+  _depts  = d.ok  ? (d.data.data  || []) : [];
+  _staff  = s.ok  ? (s.data.data  || []) : [];
+  _shifts = st.ok ? (st.data.data || []) : [];
+  fillAllSelects();
+  onEnter(_curPage);
+}
+
+function fillAllSelects() {
+  // Dept selects with "all" option
+  ['cal-dept', 'sl-dept'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = `<option value="">全部科室</option>` +
+      _depts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  });
+  // Dept selects without "all"
+  ['ms-dept', 'msl-dept', 'au-dept'].forEach(id => fillSel(id, _depts));
+  // Shift types
+  fillSel('msl-type', _shifts, s => s.name);
+  // Workload dept
+  const wl = document.getElementById('wl-dept');
+  if (wl) wl.innerHTML = `<option value="">选择科室</option>` + _depts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+}
+
+function fillSel(id, items, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = items.map(it =>
+    `<option value="${it.id}">${label ? label(it) : it.name}</option>`
+  ).join('') || '<option value="">（暂无数据）</option>';
+}
+
+/* ════════════════════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════════════════════ */
+async function loadDashboard() {
+  document.getElementById('ds-staff').textContent = _staff.length;
+  document.getElementById('ds-depts').textContent = _depts.length;
+
+  const { from, to } = weekRange(0);
+  const [slots, swaps] = await Promise.all([
+    GET(`/api/v1/slots?from=${from}&to=${to}`),
+    GET('/api/v1/swaps/pending'),
+  ]);
+  const slotList = slots.ok ? (slots.data.data || []) : [];
+  const swapList = swaps.ok ? (swaps.data.data || []) : [];
+  document.getElementById('ds-slots').textContent = slotList.length;
+  document.getElementById('ds-swaps').textContent = swapList.length;
+  setBadge(swapList.length);
+
+  // Staff table
+  const se = document.getElementById('dash-staff');
+  if (!_staff.length) {
+    se.innerHTML = empty('👤', '暂无员工数据');
+  } else {
+    se.innerHTML = `<table><thead><tr><th>工号</th><th>姓名</th><th>角色</th><th>资质</th></tr></thead><tbody>` +
+      _staff.slice(0,8).map(s => `<tr>
+        <td class="mono">${s.employee_no}</td><td><b>${s.name}</b></td>
+        <td>${roleBadge(s.role)}</td><td>${qualTags(s.qualifications)}</td>
+      </tr>`).join('') + '</tbody></table>';
+  }
+
+  // Swaps
+  const se2 = document.getElementById('dash-swaps');
+  if (!swapList.length) {
+    se2.innerHTML = empty('✅', '暂无待审申请');
+  } else {
+    se2.innerHTML = `<table><thead><tr><th>ID</th><th>申请人</th><th>班次格</th><th>原因</th></tr></thead><tbody>` +
+      swapList.map(sw => `<tr>
+        <td class="mono">#${sw.id}</td>
+        <td>${sName(sw.requester_id)}</td>
+        <td><span class="badge b-gray">Slot#${sw.requester_slot_id}</span></td>
+        <td class="muted small">${sw.reason||'-'}</td>
+      </tr>`).join('') + '</tbody></table>';
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   CALENDAR
+════════════════════════════════════════════════════════════ */
+function initCalendar() {
+  const { from, to } = weekRange(0);
+  document.getElementById('cal-from').value = from;
+  document.getElementById('cal-to').value   = to;
+  loadCal();
+}
+
+function calShift(dir) {
+  if (dir === 0) {
+    const { from, to } = weekRange(0);
+    document.getElementById('cal-from').value = from;
+    document.getElementById('cal-to').value   = to;
+  } else {
+    const f = new Date(document.getElementById('cal-from').value + 'T12:00:00');
+    const t = new Date(document.getElementById('cal-to').value   + 'T12:00:00');
+    f.setDate(f.getDate() + dir * 7);
+    t.setDate(t.getDate() + dir * 7);
+    document.getElementById('cal-from').value = fmt(f);
+    document.getElementById('cal-to').value   = fmt(t);
+  }
+  loadCal();
+}
+
+async function loadCal() {
+  const dept = document.getElementById('cal-dept').value;
+  const from = document.getElementById('cal-from').value;
+  const to   = document.getElementById('cal-to').value;
+  if (!from || !to) return;
+
+  const el = document.getElementById('cal-grid');
+  el.innerHTML = `<div class="loading"><span class="spin"></span>加载排班数据…</div>`;
+
+  const r = await GET(`/api/v1/slots?department_id=${dept}&from=${from}&to=${to}`);
+  const slots = r.ok ? (r.data.data || []) : [];
+
+  if (!slots.length) { el.innerHTML = empty('📅', '该时段暂无班次格'); return; }
+
+  const dates = dateRange(from, to);
+  // group: date → shiftCode → slots[]
+  const grp = {};
+  for (const s of slots) {
+    const d = s.date?.substring(0, 10);
+    const code = shiftCode(s.shift_type_id);
+    if (!grp[d]) grp[d] = {};
+    if (!grp[d][code]) grp[d][code] = [];
+    grp[d][code].push(s);
+  }
+
+  const SHIFTS = [
+    { code:'MORNING', icon:'🌅', label:'早班' },
+    { code:'EVENING', icon:'🌆', label:'晚班' },
+    { code:'NIGHT',   icon:'🌙', label:'夜班' },
+  ];
+  const cols = dates.length;
+  let html = `<div class="sg" style="grid-template-columns:80px repeat(${cols},1fr)">`;
+
+  // header
+  html += `<div class="sg-head" style="border-left:1px solid var(--border)">班次</div>`;
+  const WD = ['日','一','二','三','四','五','六'];
+  for (const d of dates) {
+    const dt = new Date(d + 'T12:00:00');
+    const we = dt.getDay() === 0 || dt.getDay() === 6;
+    html += `<div class="sg-head" style="${we ? 'color:var(--red)' : ''}">
+      <div>${d.substring(5)}</div><div style="font-size:9px;opacity:.7">周${WD[dt.getDay()]}</div>
+    </div>`;
+  }
+
+  // rows
+  for (const { code, icon, label } of SHIFTS) {
+    html += `<div class="sg-row-lbl">${icon} ${label}</div>`;
+    for (const d of dates) {
+      const cell = (grp[d] && grp[d][code]) || [];
+      html += `<div class="sg-cell">`;
+      if (!cell.length) {
+        html += `<div style="color:var(--dim);font-size:10px;padding:2px 4px">—</div>`;
+      } else {
+        for (const s of cell) {
+          const pct = s.required_staff > 0 ? s.assigned_count / s.required_staff : 0;
+          const cls = pct >= 1 ? 'filled' : pct > 0 ? 'partial' : 'open';
+          const ico = pct >= 1 ? '✓' : pct > 0 ? '⚡' : '○';
+          html += `<div class="slot-chip ${cls}" onclick="openSlotDetail(${s.id})"
+            title="Slot#${s.id} | ${s.required_role} | 需${s.required_staff}人">
+            ${ico} #${s.id} <span style="opacity:.6">${s.assigned_count}/${s.required_staff}</span>
+          </div>`;
+        }
+      }
+      html += `</div>`;
+    }
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function openSlotDetail(slotID) {
+  document.getElementById('sd-title').textContent = `班次格 #${slotID} 详情`;
+  document.getElementById('sd-body').innerHTML = `<div class="loading"><span class="spin"></span>加载中…</div>`;
+  document.getElementById('m-slotdetail').style.display = 'flex';
+
+  const [sr, ar] = await Promise.all([
+    GET(`/api/v1/slots?from=2020-01-01&to=2099-12-31`),   // we'll get from the list
+    GET(`/api/v1/slots?from=2020-01-01&to=2099-12-31`),
+  ]);
+  // Since no /slots/:id endpoint, find from full list is impractical.
+  // Use assignments endpoint for the slot
+  const r2 = await GET('/api/v1/swaps/pending'); // just a ping to confirm
+  // Build detail from slot info we already have embedded in the chip click
+  document.getElementById('sd-body').innerHTML = `
+    <p class="muted small mb8">Slot ID: <b class="mono">#${slotID}</b></p>
+    <hr class="sep">
+    <div class="fg"><label>快捷应急分配</label>
+      <div class="row mt8">
+        <select id="sd-emstaff" style="flex:1">${_staff.map(s=>`<option value="${s.id}">${s.name}（${s.role}）</option>`).join('')}</select>
+        <button class="btn btn-d btn-sm" onclick="quickEmerg(${slotID})">🚨 应急分配</button>
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="row">
+      <button class="btn btn-g btn-sm" onclick="closeM('m-slotdetail');nav('emergency');document.getElementById('em-slot-id').value=${slotID};findCandidates()">🔍 查找候选人</button>
+      <button class="btn btn-g btn-sm" onclick="closeM('m-slotdetail');nav('assign')">✍️ 手动排班</button>
+    </div>`;
+}
+
+async function quickEmerg(slotID) {
+  const staffID = +document.getElementById('sd-emstaff').value;
+  if (!staffID) return;
+  const r = await POST('/api/v1/emergency/assign', { staff_id: staffID, slot_id: slotID, note:'日历快捷应急', created_by:0 });
+  if (r.ok && !r.data?.data?.blocked) {
+    toast('应急分配成功', 'ok'); closeM('m-slotdetail'); loadCal();
+  } else {
+    const viols = r.data?.data?.violations || [];
+    toast('分配失败：' + (viols[0]?.message || r.data?.error || '未知'), 'err');
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   SLOTS
+════════════════════════════════════════════════════════════ */
+async function loadSlots() {
+  const dept = document.getElementById('sl-dept').value;
+  const from = document.getElementById('sl-from').value;
+  const to   = document.getElementById('sl-to').value;
+  const q = new URLSearchParams();
+  if (dept) q.set('department_id', dept);
+  if (from) q.set('from', from);
+  if (to)   q.set('to', to);
+
+  const r = await GET('/api/v1/slots?' + q);
+  const list = r.ok ? (r.data.data || []) : [];
+  const tb = document.getElementById('slots-tb');
+
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="8">${empty('🕐','暂无班次格，请调整筛选条件')}</td></tr>`;
+    return;
+  }
+  const smap = { OPEN:'b-blue', FILLED:'b-green', LOCKED:'b-yellow', CANCELED:'b-gray' };
+  const slbl = { OPEN:'开放', FILLED:'已满', LOCKED:'锁定', CANCELED:'已取消' };
+  tb.innerHTML = list.map(s => {
+    const dept = _depts.find(d => d.id === s.department_id);
+    const sh   = _shifts.find(t => t.id === s.shift_type_id);
+    return `<tr>
+      <td class="mono">#${s.id}</td>
+      <td>${dept?.name || '-'}</td>
+      <td>${shiftTag(sh)}</td>
+      <td class="mono">${s.date?.substring(0,10)||'-'}</td>
+      <td>${roleBadge(s.required_role)}</td>
+      <td>${qualTags(s.required_quals)}</td>
+      <td><span class="badge ${s.assigned_count >= s.required_staff ? 'b-green' : 'b-yellow'}">${s.assigned_count}/${s.required_staff}</span></td>
+      <td><span class="badge ${smap[s.status]||'b-gray'}">${slbl[s.status]||s.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function openSlotModal() {
+  document.getElementById('msl-date').value = fmt(new Date());
+  document.getElementById('msl-count').value = '1';
+  unchip('msl-quals');
+  closeM(''); // ensure others closed
+  document.getElementById('m-slot').style.display = 'flex';
+}
+
+async function createSlot() {
+  const deptID = +document.getElementById('msl-dept').value;
+  const typeID = +document.getElementById('msl-type').value;
+  const date   = document.getElementById('msl-date').value;
+  const count  = +document.getElementById('msl-count').value || 1;
+  const role   = document.getElementById('msl-role').value;
+  const quals  = getChips('msl-quals');
+  if (!deptID || !typeID || !date) { toast('请填写完整信息', 'err'); return; }
+  const r = await POST('/api/v1/slots', {
+    department_id: deptID, shift_type_id: typeID, date,
+    required_staff: count, required_role: role, required_quals: quals
+  });
+  if (r.ok) { toast(`班次格 #${r.data.data?.id} 创建成功`, 'ok'); closeM('m-slot'); loadSlots(); }
+  else toast('创建失败：' + (r.data?.error || ''), 'err');
+}
+
+/* ════════════════════════════════════════════════════════════
+   ASSIGN
+════════════════════════════════════════════════════════════ */
+async function initAssignPage() {
+  // Staff dropdown
+  document.getElementById('as-staff').innerHTML =
+    _staff.map(s => `<option value="${s.id}">${s.name}（${s.employee_no} · ${s.role}）</option>`).join('')
+    || '<option>暂无员工</option>';
+
+  // Open slots (next 30 days)
+  const from = fmt(new Date());
+  const to   = fmt(add(new Date(), 30));
+  const r = await GET(`/api/v1/slots?from=${from}&to=${to}`);
+  const open = r.ok ? (r.data.data || []).filter(s => s.status !== 'CANCELED' && s.assigned_count < s.required_staff) : [];
+  document.getElementById('as-slot').innerHTML = open.length
+    ? open.map(s => {
+        const sh = _shifts.find(t => t.id === s.shift_type_id);
+        return `<option value="${s.id}">#${s.id} | ${s.date?.substring(0,10)} | ${sh?.name||''} | ${s.required_role}</option>`;
+      }).join('')
+    : '<option value="">暂无开放班次格</option>';
+
+  document.getElementById('as-result').innerHTML = '';
+  loadAssignRecords();
+}
+
+async function doAssign() {
+  const staffID = +document.getElementById('as-staff').value;
+  const slotID  = +document.getElementById('as-slot').value;
+  const note    = document.getElementById('as-note').value;
+  const el      = document.getElementById('as-result');
+  el.innerHTML  = '';
+  if (!staffID || !slotID) { toast('请选择员工和班次格', 'err'); return; }
+
+  const r = await POST('/api/v1/assignments', { staff_id: staffID, slot_id: slotID, note, created_by: 0 });
+
+  if (r.status === 422 || r.data?.data?.blocked) {
+    const viols = r.data?.data?.violations || [];
+    el.innerHTML = alertBox('err', '⛔ 排班被规则引擎拒绝', viols.map(v =>
+      `${v.message}${v.suggestion ? '<br><span style="opacity:.7;font-size:10px">建议：'+v.suggestion+'</span>' : ''}`
+    ));
+    toast('排班被硬规则拒绝', 'err'); return;
+  }
+  if (!r.ok) { toast('排班失败：' + (r.data?.error || ''), 'err'); return; }
+
+  const warns = r.data?.data?.warnings || [];
+  if (warns.length) {
+    el.innerHTML = alertBox('warn', '⚠️ 软规则警告（已排班，请关注）', warns.map(v => v.message));
+    toast('排班成功（有软规则警告）', 'warn');
+  } else {
+    el.innerHTML = alertBox('ok', '✓ 排班成功', ['排班记录已创建']);
+    toast('排班成功！', 'ok');
+  }
+  initAssignPage();
+}
+
+async function loadAssignRecords() {
+  const tb = document.getElementById('as-records');
+  tb.innerHTML = `<tr><td colspan="7"><div class="loading"><span class="spin"></span>加载中…</div></td></tr>`;
+
+  // Fetch slots with assignments (next 14 days)
+  const from = fmt(add(new Date(), -7));
+  const to   = fmt(add(new Date(), 14));
+  const r = await GET(`/api/v1/slots?from=${from}&to=${to}`);
+  const slots = r.ok ? (r.data.data || []).filter(s => s.assigned_count > 0) : [];
+
+  if (!slots.length) {
+    tb.innerHTML = `<tr><td colspan="7">${empty('📋', '暂无排班记录')}</td></tr>`;
+    return;
+  }
+
+  // For each slot, show assigned info (we don't have /assignments?slot_id, use slot data)
+  tb.innerHTML = slots.map(s => {
+    const sh   = _shifts.find(t => t.id === s.shift_type_id);
+    const dept = _depts.find(d => d.id === s.department_id);
+    const smap = { OPEN:'b-blue', FILLED:'b-green', LOCKED:'b-yellow', CANCELED:'b-gray' };
+    return `<tr>
+      <td class="mono">#${s.id}</td>
+      <td>${dept?.name||'-'}</td>
+      <td class="mono">#${s.id}</td>
+      <td class="mono">${s.date?.substring(0,10)||'-'}</td>
+      <td>${shiftTag(sh)}</td>
+      <td><span class="badge ${s.assigned_count>=s.required_staff?'b-green':'b-yellow'}">${s.assigned_count}/${s.required_staff}人</span></td>
+      <td>
+        <button class="btn btn-g btn-xs" onclick="nav('calendar')">查看</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function cancelAssignment(assignID) {
+  if (!confirm('确认取消该排班？')) return;
+  const r = await DEL('/api/v1/assignments/' + assignID);
+  if (r.ok) { toast('排班已取消', 'ok'); loadAssignRecords(); }
+  else toast('取消失败：' + (r.data?.error || ''), 'err');
+}
+
+/* ════════════════════════════════════════════════════════════
+   AUTO SCHEDULE
+════════════════════════════════════════════════════════════ */
+function initAutoPage() {
+  fillSel('au-dept', _depts);
+  const { from, to } = weekRange(0);
+  document.getElementById('au-from').value = from;
+  document.getElementById('au-to').value   = to;
+}
+
+async function doAutoSched() {
+  const deptID = +document.getElementById('au-dept').value;
+  const from   = document.getElementById('au-from').value;
+  const to     = document.getElementById('au-to').value;
+  const btn    = document.getElementById('au-btn');
+  const el     = document.getElementById('au-result');
+  if (!deptID || !from || !to) { toast('请填写完整信息', 'err'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>排班中…';
+  el.innerHTML  = `<div class="loading"><span class="spin"></span>运行自动排班算法…</div>`;
+
+  const r = await POST('/api/v1/schedule/auto', { department_id: deptID, from, to });
+  btn.disabled = false;
+  btn.innerHTML = '⚡ 开始自动排班';
+
+  if (!r.ok) {
+    el.innerHTML = alertBox('err', '执行失败', [r.data?.error||'未知错误']);
+    return;
+  }
+  const d = r.data?.data || {};
+  const st = d.stats || {};
+  const unfill = d.unfilled_slots || [];
+  const warns  = (d.violations || []).filter(v => v.severity === 'SOFT');
+
+  el.innerHTML = `
+    <div class="g3 mb8">
+      <div class="stat green"><div class="stat-l">成功排班</div><div class="stat-v" style="font-size:24px">${st.filled_slots||0}</div></div>
+      <div class="stat yellow"><div class="stat-l">未能填充</div><div class="stat-v" style="font-size:24px">${st.unfilled_slots||0}</div></div>
+      <div class="stat blue"><div class="stat-l">软规则警告</div><div class="stat-v" style="font-size:24px">${st.warnings||0}</div></div>
+    </div>
+    ${unfill.length
+      ? alertBox('warn','⚠️ 以下班次格无法自动填充（人员不足或不满足硬规则）',
+          unfill.map(s => `Slot #${s.id}  ${s.date?.substring(0,10)}  ${s.required_role}  需${s.required_staff}人`))
+      : `<div class="alert alert-ok"><div class="alert-title">✓ 全部班次格已填充</div></div>`
+    }
+    ${warns.length ? alertBox('warn','软规则警告列表', warns.map(v=>v.message)) : ''}`;
+  toast(`自动排班完成：填充 ${st.filled_slots||0} 个班次格`, 'ok');
+}
+
+/* ════════════════════════════════════════════════════════════
+   STAFF
+════════════════════════════════════════════════════════════ */
+async function loadStaff() {
+  const r = await GET('/api/v1/staff');
+  _staff = r.ok ? (r.data.data || []) : [];
+  const tb = document.getElementById('staff-tb');
+  if (!_staff.length) {
+    tb.innerHTML = `<tr><td colspan="6">${empty('👤','暂无员工数据')}</td></tr>`;
+    return;
+  }
+  tb.innerHTML = _staff.map(s => {
+    const dept = _depts.find(d => d.id === s.department_id);
+    return `<tr>
+      <td class="mono">${s.employee_no}</td>
+      <td><b>${s.name}</b></td>
+      <td>${roleBadge(s.role)}</td>
+      <td>${dept?.name||'-'}</td>
+      <td>${qualTags(s.qualifications)}</td>
+      <td><span class="badge ${s.is_active?'b-green':'b-gray'}">${s.is_active?'在职':'离职'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function openStaffModal() {
+  document.getElementById('ms-no').value   = '';
+  document.getElementById('ms-name').value = '';
+  fillSel('ms-dept', _depts);
+  unchip('ms-quals');
+  document.getElementById('m-staff').style.display = 'flex';
+}
+
+async function createStaff() {
+  const no     = document.getElementById('ms-no').value.trim();
+  const name   = document.getElementById('ms-name').value.trim();
+  const role   = document.getElementById('ms-role').value;
+  const deptID = +document.getElementById('ms-dept').value;
+  const quals  = getChips('ms-quals');
+  if (!no || !name || !deptID) { toast('请填写完整信息', 'err'); return; }
+  const r = await POST('/api/v1/staff', { employee_no:no, name, role, department_id:deptID, qualifications:quals });
+  if (r.ok) {
+    toast('员工创建成功', 'ok');
+    closeM('m-staff');
+    await loadStaff();
+    fillAllSelects();
+  } else toast('创建失败：' + (r.data?.error||''), 'err');
+}
+
+/* ══════ DEPARTMENTS ══════ */
+async function loadDepts() {
+  const r = await GET('/api/v1/departments');
+  _depts = r.ok ? (r.data.data || []) : [];
+  fillAllSelects();
+  const tb = document.getElementById('dept-tb');
+  if (!_depts.length) { tb.innerHTML=`<tr><td colspan="4">${empty('🏢','暂无科室')}</td></tr>`; return; }
+  tb.innerHTML = _depts.map(d => `<tr>
+    <td class="mono">#${d.id}</td>
+    <td><b>${d.name}</b></td>
+    <td class="mono">${d.code}</td>
+    <td><span class="badge ${d.is_active?'b-green':'b-gray'}">${d.is_active?'启用':'停用'}</span></td>
+  </tr>`).join('');
+}
+
+async function createDept() {
+  const name = document.getElementById('dp-name').value.trim();
+  const code = document.getElementById('dp-code').value.trim().toUpperCase();
+  if (!name || !code) { toast('请填写科室名称和代码', 'err'); return; }
+  const r = await POST('/api/v1/departments', { name, code });
+  if (r.ok) {
+    toast('科室「' + name + '」创建成功', 'ok');
+    document.getElementById('dp-name').value = '';
+    document.getElementById('dp-code').value = '';
+    loadDepts();
+  } else toast('创建失败：' + (r.data?.error||''), 'err');
+}
+
+/* ══════ WORKLOAD ══════ */
+async function loadWorkload() {
+  const deptID = document.getElementById('wl-dept').value;
+  const tb = document.getElementById('wl-tb');
+  if (!deptID) {
+    tb.innerHTML = `<tr><td colspan="8">${empty('📈','请先选择科室')}</td></tr>`;
+    return;
+  }
+  tb.innerHTML = `<tr><td colspan="8"><div class="loading"><span class="spin"></span>加载中…</div></td></tr>`;
+  const r = await GET('/api/v1/workload?department_id=' + deptID);
+  const list = r.ok ? (r.data.data || []) : [];
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="8">${empty('📈','该科室暂无工时数据')}</td></tr>`; return; }
+  const maxH = Math.max(...list.map(x => x.account?.month_hours||0), 1);
+  tb.innerHTML = list.map(item => {
+    const s   = item.staff   || {};
+    const acc = item.account || {};
+    const hrs = acc.month_hours || 0;
+    const pct = Math.min(100, (hrs/maxH)*100);
+    const diff = item.diff_pct || 0;
+    const barCls = pct>85?'wb-o':pct>65?'wb-w':'wb-n';
+    const diffBadge = Math.abs(diff)<15?'b-gray':diff>0?'b-red':'b-blue';
+    return `<tr>
+      <td><b>${s.name||'-'}</b><div class="mono dim" style="font-size:10px">${s.employee_no||''}</div></td>
+      <td>${roleBadge(s.role)}</td>
+      <td class="mono">${hrs.toFixed(1)}h</td>
+      <td class="mono">${(acc.week_hours||0).toFixed(1)}h</td>
+      <td class="mono">${acc.night_shifts_this_month||0}次</td>
+      <td class="mono">${acc.consecutive_shifts||0}天</td>
+      <td><span class="badge ${diffBadge}">${diff>0?'+':''}${diff.toFixed(1)}%</span></td>
+      <td style="min-width:130px">
+        <div class="wb-row">
+          <div class="wb-bg"><div class="wb-fill ${barCls}" style="width:${pct.toFixed(1)}%"></div></div>
+          <span class="mono muted" style="font-size:10px;white-space:nowrap">${pct.toFixed(0)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════ EMERGENCY ══════ */
+async function findCandidates() {
+  const slotID = document.getElementById('em-slot-id').value;
+  if (!slotID) { toast('请输入 Slot ID','err'); return; }
+  const el = document.getElementById('em-cands');
+  el.innerHTML = `<div class="loading"><span class="spin"></span>查找中…</div>`;
+  const r = await GET('/api/v1/emergency/candidates/' + slotID);
+  if (!r.ok) { el.innerHTML=alertBox('err','查找失败',[r.data?.error||'未知']); return; }
+  const cands = r.data?.data?.Candidates || [];
+  if (!cands.length) { el.innerHTML=`<div class="mt8">${empty('😔','无符合条件的候选人')}</div>`; return; }
+  el.innerHTML = `<div class="mt8 small muted mb8">找到 ${cands.length} 位候选人</div>` +
+    cands.map(c => `
+      <div style="background:var(--surf3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-weight:600">${c.staff.name}</div>
+          <div class="mono muted small">${c.staff.employee_no} · ${c.staff.role} · 月工时${(c.workload?.month_hours||0).toFixed(1)}h · 连续${c.workload?.consecutive_shifts||0}天</div>
+          ${c.violations?.length ? '<div class="small" style="color:var(--yellow);margin-top:2px">⚠ 软规则：'+c.violations.map(v=>v.message).join('；')+'</div>' : ''}
+        </div>
+        ${c.violations?.length ? `<span class="badge b-yellow">⚠ ${c.violations.length}警告</span>` : `<span class="badge b-green">✓ 无警告</span>`}
+        <button class="btn btn-g btn-sm" onclick="prefillEmerg(${c.staff.id},${slotID})">选用 →</button>
+      </div>`).join('');
+}
+
+function prefillEmerg(staffID, slotID) {
+  document.getElementById('em-staff').value        = staffID;
+  document.getElementById('em-assign-slot').value  = slotID;
+  document.getElementById('em-note').value          = '应急替班';
+  toast('已填入表单，确认后点击「立即应急分配」','info');
+}
+
+async function doEmergAssign() {
+  const staffID = +document.getElementById('em-staff').value;
+  const slotID  = +document.getElementById('em-assign-slot').value;
+  const note    = document.getElementById('em-note').value || '应急分配';
+  const el      = document.getElementById('em-assign-result');
+  if (!staffID || !slotID) { toast('请填写完整信息','err'); return; }
+  const r = await POST('/api/v1/emergency/assign', { staff_id:staffID, slot_id:slotID, note, created_by:0 });
+  if (r.status===422 || r.data?.data?.blocked) {
+    el.innerHTML = alertBox('err','⛔ 被硬规则拒绝',(r.data?.data?.violations||[]).map(v=>v.message));
+    toast('应急分配被硬规则拒绝','err'); return;
+  }
+  if (!r.ok) { toast('分配失败：'+(r.data?.error||''),'err'); return; }
+  const warns = r.data?.data?.warnings || [];
+  el.innerHTML = alertBox('ok','✓ 应急分配成功', warns.length?['以下软规则有警告（已接受）：',...warns.map(v=>v.message)]:['无规则警告，分配完成']);
+  toast('应急分配成功！','ok');
+}
+
+/* ══════ SWAPS ══════ */
+function swapTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+  document.getElementById('sw-tab-pending').style.display = tab==='pending' ? '' : 'none';
+  document.getElementById('sw-tab-create').style.display  = tab==='create'  ? '' : 'none';
+  if (tab==='pending') loadSwaps();
+  if (tab==='create')  fillSwapCreate();
+}
+
+function fillSwapCreate() {
+  const opts = _staff.map(s=>`<option value="${s.id}">${s.name}（${s.employee_no}）</option>`).join('');
+  document.getElementById('sw-req').innerHTML    = opts||'<option>暂无员工</option>';
+  document.getElementById('sw-target').innerHTML = `<option value="">不指定（公开换班）</option>`+opts;
+}
+
+async function loadSwaps() {
+  const r = await GET('/api/v1/swaps/pending');
+  const list = r.ok ? (r.data.data||[]) : [];
+  setBadge(list.length);
+  document.getElementById('ds-swaps').textContent = list.length;
+  const tb = document.getElementById('sw-tb');
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="7">${empty('✅','暂无待审换班申请')}</td></tr>`; return; }
+  tb.innerHTML = list.map(sw => `<tr>
+    <td class="mono">#${sw.id}</td>
+    <td><b>${sName(sw.requester_id)}</b></td>
+    <td><span class="badge b-gray">Slot#${sw.requester_slot_id}</span></td>
+    <td>${sw.target_staff_id ? sName(sw.target_staff_id) : '<span class="muted">公开换班</span>'}</td>
+    <td class="muted small">${sw.reason||'—'}</td>
+    <td class="mono small muted">${(sw.created_at||'').substring(0,10)||'—'}</td>
+    <td><button class="btn btn-p btn-xs" onclick="openReview(${sw.id},${JSON.stringify(sw.reason||'')},${sw.requester_id},${sw.requester_slot_id})">审批</button></td>
+  </tr>`).join('');
+}
+
+function openReview(id, reason, reqID, slotID) {
+  _curSwapID = id;
+  document.getElementById('review-info').innerHTML = `
+    <div style="background:var(--surf3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:12px">
+      <div><span class="muted">申请 ID：</span><b class="mono">#${id}</b></div>
+      <div><span class="muted">申请人：</span>${sName(reqID)}</div>
+      <div><span class="muted">班次格：</span>Slot #${slotID}</div>
+      <div><span class="muted">换班原因：</span>${reason||'—'}</div>
+    </div>`;
+  document.getElementById('review-note').value = '';
+  document.getElementById('m-review').style.display = 'flex';
+}
+
+async function doReview(action) {
+  if (!_curSwapID) return;
+  const note = document.getElementById('review-note').value;
+  const r = await POST(`/api/v1/swaps/${_curSwapID}/review`, { action, reviewer_id:1, note });
+  if (r.ok) {
+    toast(action==='approve' ? '✓ 换班申请已批准' : '换班申请已拒绝', action==='approve'?'ok':'warn');
+    closeM('m-review');
+    loadSwaps();
+  } else toast('操作失败：'+(r.data?.error||''),'err');
+}
+
+async function submitSwap() {
+  const reqID  = +document.getElementById('sw-req').value;
+  const slotID = +document.getElementById('sw-slot').value;
+  const tgtRaw = document.getElementById('sw-target').value;
+  const target = tgtRaw ? +tgtRaw : null;
+  const reason = document.getElementById('sw-reason').value;
+  if (!reqID || !slotID) { toast('请填写申请人和班次格 ID','err'); return; }
+  const r = await POST('/api/v1/swaps', { requester_id:reqID, slot_id:slotID, target_staff_id:target, reason });
+  if (r.ok) {
+    toast('换班申请提交成功 #'+(r.data.data?.id||''),'ok');
+    document.getElementById('sw-slot').value   = '';
+    document.getElementById('sw-reason').value = '';
+    swapTab('pending');
+  } else toast('提交失败：'+(r.data?.error||''),'err');
+}
+
+/* ══════ MODALS ══════ */
+function closeM(id) {
+  const ids = id ? [id] : ['m-staff','m-slot','m-review','m-slotdetail'];
+  ids.forEach(i => { const el=document.getElementById(i); if(el) el.style.display='none'; });
+}
+
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  const cb = chip.querySelector('input[type=checkbox]');
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  chip.classList.toggle('on', cb.checked);
+});
+function getChips(id) {
+  return [...document.querySelectorAll(`#${id} input[type=checkbox]:checked`)].map(c=>c.value);
+}
+function unchip(id) {
+  document.querySelectorAll(`#${id} .chip`).forEach(c => {
+    c.classList.remove('on');
+    c.querySelector('input').checked = false;
+  });
+}
+
+/* ══════ BADGE ══════ */
+function setBadge(n) {
+  const el = document.getElementById('swap-badge');
+  el.textContent = n;
+  el.style.display = n>0 ? '' : 'none';
+}
+
+/* ══════ UTILITIES ══════ */
+function fmt(d)       { return d.toISOString().substring(0,10); }
+function add(d,days)  { const x=new Date(d); x.setDate(x.getDate()+days); return x; }
+
+function weekRange(offset) {
+  const now=new Date(), day=now.getDay()||7;
+  const mon=new Date(now); mon.setDate(now.getDate()-day+1+offset*7);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  return { from:fmt(mon), to:fmt(sun) };
+}
+
+function dateRange(from,to) {
+  const dates=[], cur=new Date(from+'T12:00:00'), end=new Date(to+'T12:00:00');
+  while(cur<=end){ dates.push(fmt(cur)); cur.setDate(cur.getDate()+1); }
+  return dates;
+}
+
+function shiftCode(shiftTypeID) {
+  return _shifts.find(s=>s.id===shiftTypeID)?.code||'MORNING';
+}
+
+function sName(id) {
+  return _staff.find(s=>s.id===id)?.name||`员工#${id}`;
+}
+
+function roleBadge(role) {
+  const m={DOCTOR:['b-blue','医生'],NURSE:['b-cyan','护士'],INTERN:['b-gray','实习']};
+  const [cls,lbl]=m[role]||['b-gray',role];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+function qualTags(qs) {
+  if (!qs?.length) return `<span class="muted small">—</span>`;
+  return qs.map(q=>`<span class="qtag q-${q}">${q}</span>`).join('');
+}
+
+function shiftTag(sh) {
+  if (!sh) return '—';
+  const ico={MORNING:'🌅',EVENING:'🌆',NIGHT:'🌙'};
+  const col={MORNING:'color:var(--yellow)',EVENING:'color:var(--orange)',NIGHT:'color:var(--purple)'};
+  return `<span style="${col[sh.code]||''};font-size:11px;font-weight:600">${ico[sh.code]||''} ${sh.name}</span>`;
+}
+
+function empty(ico,msg) {
+  return `<div class="empty"><div class="empty-ico">${ico}</div>${msg}</div>`;
+}
+
+function alertBox(type,title,lines=[]) {
+  const cls={err:'alert-err',warn:'alert-warn',ok:'alert-ok'}[type]||'alert-warn';
+  return `<div class="alert ${cls}">
+    <div class="alert-title">${title}</div>
+    ${lines.map(l=>`<div class="viol-item">• ${l}</div>`).join('')}
+  </div>`;
+}
+
+/* ══════ INIT ══════ */
+(function init(){
+  document.getElementById('sl-from').value = fmt(new Date());
+  document.getElementById('sl-to').value   = fmt(add(new Date(),30));
+  connect();
+})();
+</script>
+</body>
+</html>
