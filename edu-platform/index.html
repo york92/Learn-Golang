@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edu Platform · API Debugger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #151820;
+    --panel:     #1c2030;
+    --border:    #252b3b;
+    --border2:   #2e3650;
+    --text:      #c8d0e7;
+    --muted:     #5a6480;
+    --accent:    #4f8fff;
+    --accent2:   #7c5cfc;
+    --green:     #2dd4a0;
+    --red:       #ff5370;
+    --yellow:    #ffcc66;
+    --orange:    #ff9944;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    overflow: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    height: 52px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  }
+  #topbar .logo {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: #fff;
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  #topbar .logo span { color: var(--accent); }
+  #topbar .base-group {
+    display: flex; align-items: center; gap: 6px;
+    flex: 1; max-width: 480px;
+  }
+  #topbar .base-group label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  #baseUrl {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    flex: 1;
+    outline: none;
+    transition: border-color .15s;
+  }
+  #baseUrl:focus { border-color: var(--accent); }
+  .token-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .token-badge.active { color: var(--green); }
+  .token-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+  .token-badge.active .token-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  #clearToken {
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 4px;
+    padding: 1px 6px;
+    background: transparent;
+    opacity: .7;
+    transition: opacity .15s;
+  }
+  #clearToken:hover { opacity: 1; }
+
+  /* ── LAYOUT ── */
+  #layout {
+    position: fixed;
+    top: 52px; bottom: 0; left: 0; right: 0;
+    display: flex;
+  }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  .nav-group-title {
+    font-size: 10px;
+    letter-spacing: .12em;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 14px 16px 5px;
+    text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background .12s, border-color .12s;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--panel); }
+  .nav-item.active {
+    background: var(--panel);
+    border-left-color: var(--accent);
+  }
+  .nav-item.active .nav-label { color: #fff; }
+  .method-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    min-width: 40px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .badge-get    { background: rgba(45,212,160,.15); color: var(--green); }
+  .badge-post   { background: rgba(79,143,255,.15); color: var(--accent); }
+  .badge-patch  { background: rgba(255,204,102,.15); color: var(--yellow); }
+  .badge-delete { background: rgba(255,83,112,.15);  color: var(--red); }
+  .nav-label { font-size: 12.5px; color: var(--text); line-height: 1.2; }
+  .nav-label small { display: block; color: var(--muted); font-size: 10.5px; margin-top: 1px; }
+
+  /* ── MAIN PANEL ── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── REQUEST PANEL ── */
+  #req-panel {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 24px 16px;
+    flex-shrink: 0;
+  }
+  .panel-title {
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  #endpoint-bar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  #methodBadge {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 7px;
+    min-width: 64px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  #endpointPath {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 12px;
+    border-radius: 7px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  #endpointPath:focus { border-color: var(--accent); }
+
+  #sendBtn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 7px 20px;
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    transition: background .15s, transform .1s;
+    flex-shrink: 0;
+  }
+  #sendBtn:hover { background: #3a75e8; }
+  #sendBtn:active { transform: scale(.97); }
+  #sendBtn.loading { background: var(--muted); cursor: not-allowed; }
+
+  /* body area */
+  #body-section { display: none; }
+  #body-section label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  #reqBody {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 14px;
+    outline: none;
+    resize: vertical;
+    min-height: 90px;
+    max-height: 200px;
+    line-height: 1.6;
+    transition: border-color .15s;
+  }
+  #reqBody:focus { border-color: var(--accent2); }
+
+  /* ── RESPONSE PANEL ── */
+  #res-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px 24px 20px;
+  }
+  #res-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+  .status-pill {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+    display: none;
+  }
+  .status-pill.ok  { background: rgba(45,212,160,.15); color: var(--green); display: inline-block; }
+  .status-pill.err { background: rgba(255,83,112,.15);  color: var(--red);   display: inline-block; }
+  #resTime { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .res-actions { margin-left: auto; display: flex; gap: 8px; }
+  .icon-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+    transition: color .12s, border-color .12s;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--border2); }
+
+  #resBody {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  #resBody::-webkit-scrollbar { width: 5px; }
+  #resBody::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  /* JSON syntax highlight */
+  .json-key    { color: #79b8ff; }
+  .json-str    { color: var(--green); }
+  .json-num    { color: var(--orange); }
+  .json-bool   { color: #f97583; }
+  .json-null   { color: var(--muted); }
+
+  .placeholder-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted);
+    gap: 10px;
+    font-size: 13px;
+  }
+  .placeholder-msg i { font-size: 32px; opacity: .3; }
+
+  /* ── LOG DRAWER ── */
+  #log-bar {
+    height: 32px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px; gap: 14px;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  #log-bar span { font-size: 11px; color: var(--muted); }
+  #log-bar .log-count { color: var(--accent); font-weight: 600; font-family: var(--mono); }
+  #log-drawer {
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    overflow-y: auto;
+    max-height: 0;
+    transition: max-height .25s ease;
+  }
+  #log-drawer.open { max-height: 180px; }
+  #log-drawer::-webkit-scrollbar { width: 4px; }
+  #log-drawer::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  .log-entry {
+    display: flex; gap: 12px;
+    padding: 5px 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: var(--muted); flex-shrink: 0; }
+  .log-method { flex-shrink: 0; font-weight: 600; min-width: 44px; }
+  .log-url { color: var(--text); flex: 1; word-break: break-all; }
+  .log-status { flex-shrink: 0; }
+  .log-ok  { color: var(--green); }
+  .log-err { color: var(--red); }
+
+  /* ── PRESETS QUICK FILL ── */
+  .preset-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .12s;
+    white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* scrollbar */
+  #sidebar::-webkit-scrollbar { width: 4px; }
+
+  /* responsive tweaks */
+  @media (max-width: 700px) {
+    #sidebar { width: 180px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo"><i class="bi bi-transmit"></i> Edu<span>API</span> Debugger</div>
+  <div class="base-group">
+    <label>BASE URL</label>
+    <input id="baseUrl" value="http://localhost:8080" placeholder="http://localhost:8080">
+  </div>
+  <div class="token-badge" id="tokenBadge">
+    <div class="token-dot"></div>
+    <span id="tokenLabel">未登录</span>
+    <button id="clearToken" style="display:none" onclick="clearToken()">清除</button>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div id="layout">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+
+    <div class="nav-group-title">🔓 认证</div>
+    <div class="nav-item" onclick="selectApi('register')">
+      <span class="method-badge badge-post">POST</span>
+      <span class="nav-label">注册用户<small>/auth/register</small></span>
+    </div>
+    <div class="nav-item" onclick="selectApi('login')">
+      <span class="method-badge badge-post">POST</span>
+      <span class="nav-label">用户登录<small>/auth/login</small></span>
+    </div>
+
+    <div class="nav-group-title">👤 用户</div>
+    <div class="nav-item" onclick="selectApi('me')">
+      <span class="method-badge badge-get">GET</span>
+      <span class="nav-label">我的信息<small>/users/me</small></span>
+    </div>
+
+    <div class="nav-group-title">📚 课程</div>
+    <div class="nav-item" onclick="selectApi('courseList')">
+      <span class="method-badge badge-get">GET</span>
+      <span class="nav-label">课程列表<small>/courses</small></span>
+    </div>
+    <div class="nav-item" onclick="selectApi('courseGet')">
+      <span class="method-badge badge-get">GET</span>
+      <span class="nav-label">课程详情<small>/courses/:id</small></span>
+    </div>
+    <div class="nav-item" onclick="selectApi('courseCreate')">
+      <span class="method-badge badge-post">POST</span>
+      <span class="nav-label">创建课程<small>/courses</small></span>
+    </div>
+    <div class="nav-item" onclick="selectApi('coursePublish')">
+      <span class="method-badge badge-patch">PATCH</span>
+      <span class="nav-label">发布课程<small>/courses/:id/publish</small></span>
+    </div>
+    <div class="nav-item" onclick="selectApi('teacherCourses')">
+      <span class="method-badge badge-get">GET</span>
+      <span class="nav-label">我的课程(师)<small>/teachers/me/courses</small></span>
+    </div>
+
+    <div class="nav-group-title">📈 学习进度</div>
+    <div class="nav-item" onclick="selectApi('progressUpdate')">
+      <span class="method-badge badge-post">POST</span>
+      <span class="nav-label">更新进度<small>/progress</small></span>
+    </div>
+    <div class="nav-item" onclick="selectApi('progressGet')">
+      <span class="method-badge badge-get">GET</span>
+      <span class="nav-label">查询进度<small>/progress/courses/:id</small></span>
+    </div>
+
+    <div class="nav-group-title">🩺 系统</div>
+    <div class="nav-item" onclick="selectApi('health')">
+      <span class="method-badge badge-get">GET</span>
+      <span class="nav-label">健康检查<small>/health</small></span>
+    </div>
+
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- REQUEST PANEL -->
+    <div id="req-panel">
+      <div class="panel-title"><i class="bi bi-arrow-up-right-circle"></i> Request</div>
+
+      <div id="endpoint-bar">
+        <div id="methodBadge" class="method-badge badge-get">GET</div>
+        <input id="endpointPath" value="/health" placeholder="/api/v1/...">
+        <button id="sendBtn" onclick="sendRequest()">
+          <i class="bi bi-send-fill"></i> Send
+        </button>
+      </div>
+
+      <div id="body-section">
+        <label><i class="bi bi-code-square"></i> Request Body (JSON)</label>
+        <textarea id="reqBody" spellcheck="false"></textarea>
+        <div class="preset-chips" id="presetChips"></div>
+      </div>
+    </div>
+
+    <!-- RESPONSE PANEL -->
+    <div id="res-panel">
+      <div class="panel-title"><i class="bi bi-arrow-down-left-circle"></i> Response</div>
+      <div id="res-header">
+        <div class="status-pill" id="statusPill"></div>
+        <div id="resTime"></div>
+        <div class="res-actions">
+          <button class="icon-btn" onclick="copyResponse()"><i class="bi bi-clipboard"></i> 复制</button>
+          <button class="icon-btn" onclick="clearResponse()"><i class="bi bi-trash"></i> 清空</button>
+        </div>
+      </div>
+      <div id="resBody">
+        <div class="placeholder-msg">
+          <i class="bi bi-activity"></i>
+          <span>选择左侧接口，点击 Send 发起请求</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG BAR -->
+    <div id="log-bar" onclick="toggleLog()">
+      <i class="bi bi-journal-code" style="color:var(--muted)"></i>
+      <span>请求历史 <span class="log-count" id="logCount">0</span> 条</span>
+      <i class="bi bi-chevron-up" id="logChevron" style="color:var(--muted);margin-left:auto"></i>
+    </div>
+    <div id="log-drawer" id="logDrawer"></div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let token = localStorage.getItem('edu_token') || '';
+let currentMethod = 'GET';
+let logOpen = false;
+let logs = [];
+
+// ═══════════════════════════════════════════════════════
+//  API DEFINITIONS
+// ═══════════════════════════════════════════════════════
+const APIS = {
+  register: {
+    method: 'POST',
+    path: '/api/v1/auth/register',
+    auth: false,
+    presets: [
+      { label: '注册学生', body: { username: 'student01', email: 'student01@test.com', password: '123456', role: 'student' } },
+      { label: '注册教师', body: { username: 'teacher01', email: 'teacher01@test.com', password: '123456', role: 'teacher' } },
+    ],
+    defaultBody: { username: 'alice', email: 'alice@example.com', password: '123456', role: 'student' }
+  },
+  login: {
+    method: 'POST',
+    path: '/api/v1/auth/login',
+    auth: false,
+    presets: [
+      { label: '学生登录', body: { email: 'student01@test.com', password: '123456' } },
+      { label: '教师登录', body: { email: 'teacher01@test.com', password: '123456' } },
+    ],
+    defaultBody: { email: 'alice@example.com', password: '123456' }
+  },
+  me: {
+    method: 'GET',
+    path: '/api/v1/users/me',
+    auth: true,
+  },
+  courseList: {
+    method: 'GET',
+    path: '/api/v1/courses?page=1&page_size=10',
+    auth: false,
+  },
+  courseGet: {
+    method: 'GET',
+    path: '/api/v1/courses/1',
+    auth: false,
+    pathEditable: true,
+    hint: '修改路径中的 ID'
+  },
+  courseCreate: {
+    method: 'POST',
+    path: '/api/v1/courses',
+    auth: true,
+    defaultBody: { title: 'Go 后端开发实战', description: '从零到一掌握 Go 语言后端开发', price: 0, level: 'beginner', cover_url: '' }
+  },
+  coursePublish: {
+    method: 'PATCH',
+    path: '/api/v1/courses/1/publish',
+    auth: true,
+    pathEditable: true,
+    hint: '修改路径中的课程 ID'
+  },
+  teacherCourses: {
+    method: 'GET',
+    path: '/api/v1/teachers/me/courses',
+    auth: true,
+  },
+  progressUpdate: {
+    method: 'POST',
+    path: '/api/v1/progress',
+    auth: true,
+    presets: [
+      { label: '进行中', body: { chapter_id: 1, course_id: 1, watched_secs: 120, is_finished: false } },
+      { label: '已完成', body: { chapter_id: 1, course_id: 1, watched_secs: 600, is_finished: true } },
+    ],
+    defaultBody: { chapter_id: 1, course_id: 1, watched_secs: 300, is_finished: false }
+  },
+  progressGet: {
+    method: 'GET',
+    path: '/api/v1/progress/courses/1',
+    auth: true,
+    pathEditable: true,
+    hint: '修改路径中的课程 ID'
+  },
+  health: {
+    method: 'GET',
+    path: '/health',
+    auth: false,
+  },
+};
+
+// ═══════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════
+function updateTokenUI() {
+  const badge = document.getElementById('tokenBadge');
+  const label = document.getElementById('tokenLabel');
+  const btn   = document.getElementById('clearToken');
+  if (token) {
+    badge.classList.add('active');
+    label.textContent = 'Token: ' + token.slice(0,14) + '…';
+    btn.style.display = 'inline-block';
+  } else {
+    badge.classList.remove('active');
+    label.textContent = '未登录';
+    btn.style.display = 'none';
+  }
+}
+
+function clearToken() {
+  token = '';
+  localStorage.removeItem('edu_token');
+  updateTokenUI();
+}
+
+function methodClass(m) {
+  return { GET: 'badge-get', POST: 'badge-post', PATCH: 'badge-patch', DELETE: 'badge-delete' }[m] || 'badge-get';
+}
+
+function selectApi(key) {
+  const api = APIS[key];
+  if (!api) return;
+
+  // sidebar active state
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  currentMethod = api.method;
+  const badge = document.getElementById('methodBadge');
+  badge.textContent = api.method;
+  badge.className = 'method-badge ' + methodClass(api.method);
+
+  document.getElementById('endpointPath').value = api.path;
+
+  const bodySection = document.getElementById('body-section');
+  const reqBody     = document.getElementById('reqBody');
+  const chips       = document.getElementById('presetChips');
+
+  if (['POST', 'PUT', 'PATCH'].includes(api.method)) {
+    bodySection.style.display = 'block';
+    reqBody.value = api.defaultBody ? JSON.stringify(api.defaultBody, null, 2) : '';
+  } else {
+    bodySection.style.display = 'none';
+    reqBody.value = '';
+  }
+
+  // preset chips
+  chips.innerHTML = '';
+  if (api.presets) {
+    api.presets.forEach(p => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = p.label;
+      chip.onclick = () => { reqBody.value = JSON.stringify(p.body, null, 2); };
+      chips.appendChild(chip);
+    });
+  }
+
+  // hint chip
+  if (api.hint) {
+    const hint = document.createElement('span');
+    hint.className = 'chip';
+    hint.style.cssText = 'color:var(--yellow);border-color:var(--yellow);cursor:default;';
+    hint.innerHTML = '<i class="bi bi-info-circle"></i> ' + api.hint;
+    chips.appendChild(hint);
+  }
+
+  clearResponse();
+}
+
+// ═══════════════════════════════════════════════════════
+//  REQUEST
+// ═══════════════════════════════════════════════════════
+async function sendRequest() {
+  const btn    = document.getElementById('sendBtn');
+  const base   = document.getElementById('baseUrl').value.replace(/\/$/, '');
+  const path   = document.getElementById('endpointPath').value;
+  const body   = document.getElementById('reqBody').value.trim();
+  const url    = base + path;
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 请求中…';
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const opts = { method: currentMethod, headers };
+  if (body && ['POST','PUT','PATCH'].includes(currentMethod)) {
+    try { opts.body = JSON.stringify(JSON.parse(body)); }
+    catch { opts.body = body; }
+  }
+
+  const t0 = Date.now();
+  let status, resText;
+
+  try {
+    const res = await fetch(url, opts);
+    status = res.status;
+    resText = await res.text();
+
+    // auto-save token from login/register
+    try {
+      const json = JSON.parse(resText);
+      if (json.data && json.data.token) {
+        token = json.data.token;
+        localStorage.setItem('edu_token', token);
+        updateTokenUI();
+      }
+    } catch {}
+
+  } catch (e) {
+    status = 0;
+    resText = JSON.stringify({ error: '网络请求失败', detail: e.message });
+  }
+
+  const elapsed = Date.now() - t0;
+  renderResponse(status, resText, elapsed);
+  addLog(currentMethod, path, status, elapsed);
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<i class="bi bi-send-fill"></i> Send';
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESPONSE RENDER
+// ═══════════════════════════════════════════════════════
+function renderResponse(status, text, ms) {
+  const pill  = document.getElementById('statusPill');
+  const time  = document.getElementById('resTime');
+  const body  = document.getElementById('resBody');
+
+  pill.className = 'status-pill ' + (status >= 200 && status < 300 ? 'ok' : 'err');
+  pill.textContent = status ? `${status}` : 'ERR';
+  time.textContent = `${ms}ms`;
+
+  try {
+    const json = JSON.parse(text);
+    body.innerHTML = syntaxHighlight(JSON.stringify(json, null, 2));
+  } catch {
+    body.textContent = text;
+  }
+}
+
+function syntaxHighlight(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      if (/^"/.test(match)) {
+        return /:$/.test(match)
+          ? `<span class="json-key">${match}</span>`
+          : `<span class="json-str">${match}</span>`;
+      }
+      if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
+      if (/null/.test(match))       return `<span class="json-null">${match}</span>`;
+      return `<span class="json-num">${match}</span>`;
+    });
+}
+
+function clearResponse() {
+  const body = document.getElementById('resBody');
+  body.innerHTML = '<div class="placeholder-msg"><i class="bi bi-activity"></i><span>等待请求…</span></div>';
+  document.getElementById('statusPill').className = 'status-pill';
+  document.getElementById('statusPill').textContent = '';
+  document.getElementById('resTime').textContent = '';
+}
+
+function copyResponse() {
+  const text = document.getElementById('resBody').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    btn.innerHTML = '<i class="bi bi-check"></i> 已复制';
+    setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> 复制', 1500);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOG
+// ═══════════════════════════════════════════════════════
+function addLog(method, path, status, ms) {
+  logs.unshift({ method, path, status, ms, time: new Date().toLocaleTimeString() });
+  document.getElementById('logCount').textContent = logs.length;
+  renderLogs();
+}
+
+function renderLogs() {
+  const drawer = document.getElementById('log-drawer');
+  drawer.innerHTML = logs.map(l => {
+    const ok = l.status >= 200 && l.status < 300;
+    const sc = l.status || 'ERR';
+    return `<div class="log-entry">
+      <span class="log-time">${l.time}</span>
+      <span class="log-method ${methodClass(l.method).replace('badge-','log-method-')}" style="color:${methodColor(l.method)}">${l.method}</span>
+      <span class="log-url">${l.path}</span>
+      <span class="log-status ${ok?'log-ok':'log-err'}">${sc} · ${l.ms}ms</span>
+    </div>`;
+  }).join('');
+}
+
+function methodColor(m) {
+  return { GET:'var(--green)', POST:'var(--accent)', PATCH:'var(--yellow)', DELETE:'var(--red)' }[m] || 'var(--text)';
+}
+
+function toggleLog() {
+  logOpen = !logOpen;
+  document.getElementById('log-drawer').classList.toggle('open', logOpen);
+  document.getElementById('logChevron').className = logOpen ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+  document.getElementById('logChevron').style.cssText = 'color:var(--muted);margin-left:auto';
+}
+
+// ═══════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUT: Ctrl+Enter → Send
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    sendRequest();
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+updateTokenUI();
+
+// auto-select health on load
+document.querySelector('.nav-item[onclick="selectApi(\'health\')"]').click();
+</script>
+</body>
+</html>
