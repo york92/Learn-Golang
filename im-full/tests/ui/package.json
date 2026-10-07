@@ -1,0 +1,7 @@
+{
+  "name": "im-ui-test",
+  "private": true,
+  "description": "用 jsdom 把内嵌的 Web 客户端跑起来，两个标签页对着真实服务端聊天（登录/收发/未读/已读/重连/离线补齐/群聊）",
+  "scripts": { "test": "node ui.js" },
+  "dependencies": { "jsdom": "^24.0.0" }
+}

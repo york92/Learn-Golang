@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IM Web 客户端</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--line:#e3e5e8;--text:#1f2328;--sub:#6b7280;--brand:#2563eb;--mine:#d6e4ff;--other:#fff;--bad:#dc2626;--ok:#16a34a}
+@media(prefers-color-scheme:dark){:root{--bg:#14161a;--panel:#1c1f24;--line:#2b2f36;--text:#e6e8eb;--sub:#8b93a0;--brand:#5b8def;--mine:#27406f;--other:#262a31}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{font:14px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 12px}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+input,textarea{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:8px 10px;width:100%}
+#auth{max-width:340px;margin:12vh auto;background:var(--panel);padding:28px;border-radius:12px;border:1px solid var(--line)}
+#auth h2{margin:0 0 4px}#auth p{margin:0 0 16px;color:var(--sub)}
+#auth input{margin-bottom:10px}#auth .row{display:flex;gap:8px}#auth .row button{flex:1}
+#err{color:var(--bad);min-height:20px;margin-top:8px}
+#app{display:none;height:100%}
+#side{width:300px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+#me{padding:12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+#me b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}.dot.on{background:var(--ok)}
+#tabs{display:flex;border-bottom:1px solid var(--line)}
+#tabs div{flex:1;text-align:center;padding:9px 0;cursor:pointer;color:var(--sub)}
+#tabs div.on{color:var(--brand);border-bottom:2px solid var(--brand)}
+#tools{padding:8px 10px;border-bottom:1px solid var(--line);display:flex;gap:6px}
+#tools button{flex:1;font-size:12px}
+#list{flex:1;overflow:auto}
+.item{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:10px;align-items:center}
+.item:hover,.item.on{background:var(--bg)}
+.av{width:36px;height:36px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;font-weight:600}
+.item .mid{flex:1;min-width:0}.item .t{display:flex;justify-content:space-between;gap:6px}
+.item .t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item small{color:var(--sub);white-space:nowrap}
+.item .p{color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{background:var(--bad);color:#fff;border-radius:10px;padding:0 6px;font-size:12px;min-width:18px;text-align:center}
+#main{flex:1;display:flex;flex-direction:column;min-width:0}
+#head{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;gap:10px;align-items:center}
+#head b{flex:1}
+#msgs{flex:1;overflow:auto;padding:16px}
+.empty{color:var(--sub);text-align:center;margin-top:30vh}
+.m{display:flex;margin:8px 0}.m.me{justify-content:flex-end}
+.bub{max-width:100%;padding:7px 11px;border-radius:10px;background:var(--other);border:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.m>div{max-width:70%}
+.m.me .bub{background:var(--mine);border-color:transparent}
+.who{font-size:12px;color:var(--sub);margin-bottom:2px}
+.meta{font-size:11px;color:var(--sub);margin-top:2px;text-align:right}.meta.bad{color:var(--bad);cursor:pointer}
+#older{display:block;margin:0 auto 8px}
+#input{border-top:1px solid var(--line);background:var(--panel);padding:10px;display:flex;gap:8px}
+#input textarea{resize:none;height:44px}
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 14px;border-radius:8px;display:none;z-index:9}
+@media(max-width:700px){#side{width:100%}#main{display:none}body.chat #side{display:none}body.chat #main{display:flex}}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<div id="auth">
+  <h2>IM</h2><p>注册或登录后即可聊天（可开多个标签页，每个标签页是独立登录）</p>
+  <input id="u" placeholder="用户名（3-32位字母数字下划线）" autocomplete="username">
+  <input id="p" type="password" placeholder="密码（至少6位）" autocomplete="current-password">
+  <input id="n" placeholder="昵称（注册时可选）">
+  <div class="row"><button class="primary" id="login">登录</button><button id="register">注册并登录</button></div>
+  <div id="err"></div>
+</div>
+
+<div id="app">
+  <div id="side">
+    <div id="me"><span class="dot" id="dot" title="连接状态"></span><b id="myname"></b><button id="logout">退出</button></div>
+    <div id="tabs"><div data-t="convs" class="on">会话</div><div data-t="friends">好友</div><div data-t="groups">群</div></div>
+    <div id="tools"></div>
+    <div id="list"></div>
+  </div>
+  <div id="main">
+    <div id="head"><button id="back" style="display:none">←</button><b id="title">选择一个会话</b><span id="headtools"></span></div>
+    <div id="msgs"><div class="empty">从左侧选择会话，或到「好友」里发起聊天</div></div>
+    <div id="input"><textarea id="text" placeholder="输入消息，Enter 发送，Shift+Enter 换行" disabled></textarea><button class="primary" id="send" disabled>发送</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ======================================================= 协议（与服务端 internal/protocol 一致）
+const CMD={AuthReq:1,AuthResp:2,Heartbeat:3,HeartbeatAck:4,SendReq:10,SendAck:11,Push:20,PushAck:21,Kick:30,SyncReq:40,SyncResp:41,ReadReq:50,ReadAck:51,ReadNotify:52,Err:99};
+const TE=new TextEncoder(),TD=new TextDecoder();
+function encode(cmd,seq,obj){ // | length 4B | cmd 2B | seq 4B | body |
+  const b=obj===undefined?new Uint8Array(0):TE.encode(JSON.stringify(obj));
+  const buf=new ArrayBuffer(10+b.length),v=new DataView(buf);
+  v.setUint32(0,6+b.length);v.setUint16(4,cmd);v.setUint32(6,seq);new Uint8Array(buf,10).set(b);return buf;
+}
+let rbuf=new Uint8Array(0);
+function feed(ab,onFrame){ // 按 length 字段切包：处理粘包/半包
+  const a=new Uint8Array(ab),m=new Uint8Array(rbuf.length+a.length);m.set(rbuf);m.set(a,rbuf.length);rbuf=m;
+  while(rbuf.length>=10){
+    const v=new DataView(rbuf.buffer,rbuf.byteOffset,rbuf.length),n=v.getUint32(0);
+    if(rbuf.length<4+n)break;
+    const body=rbuf.slice(10,4+n);
+    onFrame({cmd:v.getUint16(4),seq:v.getUint32(6),body:body.length?JSON.parse(TD.decode(body)):null});
+    rbuf=rbuf.slice(4+n);
+  }
+}
+
+// ======================================================= 状态
+const ss=sessionStorage; // 用 sessionStorage：每个标签页独立登录，方便单机测试两个用户
+const S={token:ss.token||"",me:ss.me?JSON.parse(ss.me):null,device:ss.device||(ss.device="web-"+Math.random().toString(36).slice(2,8)),
+  convs:new Map(),msgs:new Map(),outbox:new Map(),names:new Map(),active:null,tab:"convs",
+  cursor:0,ahead:new Set(),seen:new Set(),ws:null,seq:0,pending:new Map(),connected:false,retry:0,timers:[],friends:[],groups:[]};
+const $=id=>document.getElementById(id);
+function h(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="on")for(const[ev,fn]of Object.entries(v))e.addEventListener(ev,fn);else if(k==="class")e.className=v;else e.setAttribute(k,v)}for(const c of kids.flat())e.append(c);return e}
+function toast(t){const e=$("toast");e.textContent=t;e.style.display="block";clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display="none",2500)}
+async function api(method,path,body){
+  const r=await fetch(path,{method,headers:{"Content-Type":"application/json",...(S.token?{Authorization:"Bearer "+S.token}:{})},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({code:-1,msg:"bad response"}));
+  if(r.status===401&&S.token&&path!=="/api/login"){logout(true);throw new Error("登录已失效")}
+  if(j.code!==0)throw new Error(j.msg||("错误 "+j.code));
+  return j.data;
+}
+
+// ======================================================= 登录
+async function doAuth(reg){
+  $("err").textContent="";
+  const username=$("u").value.trim(),password=$("p").value;
+  try{
+    if(reg)await api("POST","/api/register",{username,password,nickname:$("n").value.trim()});
+    const r=await api("POST","/api/login",{username,password});
+    S.token=ss.token=r.token;S.me=r.user;ss.me=JSON.stringify(r.user);start();
+  }catch(e){$("err").textContent=e.message}
+}
+$("login").onclick=()=>doAuth(false);$("register").onclick=()=>doAuth(true);
+$("p").addEventListener("keydown",e=>{if(e.key==="Enter")doAuth(false)});
+function logout(silent){
+  if(!silent)api("POST","/api/logout").catch(()=>{});
+  ss.removeItem("token");ss.removeItem("me");S.token="";S.me=null;
+  closeWS();location.reload();
+}
+$("logout").onclick=()=>logout(false);
+
+async function start(){
+  $("auth").style.display="none";$("app").style.display="flex";$("myname").textContent=S.me.nickname+" (uid "+S.me.uid+")";
+  S.names.set(S.me.uid,S.me.nickname);
+  await refreshConvs(true);await refreshSocial();renderSide();connect();
+}
+
+// ======================================================= 数据加载（HTTP 快照）
+async function refreshConvs(initCursor){
+  const d=await api("GET","/api/conversations");
+  // 快照 + 增量：快照里的 latest_user_seq 就是之后 sync 的起点
+  if(initCursor)S.cursor=d.latest_user_seq;
+  for(const c of d.conversations){
+    const old=S.convs.get(c.conv_id);
+    c.lastSeq=c.last?c.last.seq:0;
+    if(old){c.lastSeq=Math.max(c.lastSeq,old.lastSeq||0);c.read_seq=Math.max(c.read_seq,old.read_seq||0)}
+    S.convs.set(c.conv_id,c);
+    if(c.type==="single")S.names.set(c.peer_uid,c.title);
+  }
+}
+async function refreshSocial(){
+  [S.friends,S.groups]=await Promise.all([api("GET","/api/friends"),api("GET","/api/groups")]);
+  S.friends.forEach(f=>S.names.set(f.uid,f.nickname));
+}
+const convOf=(a,b)=>"s:"+Math.min(a,b)+":"+Math.max(a,b);
+const unread=c=>Math.max(0,(c.lastSeq||0)-(c.read_seq||0));
+
+// ======================================================= WebSocket 连接
+function connect(){
+  if(!S.token)return;
+  const ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+  ws.binaryType="arraybuffer";S.ws=ws;rbuf=new Uint8Array(0);let lastRx=Date.now(),hb=30000,retryAfter=0;
+  ws.onopen=()=>{S.pending.clear();rawReq(CMD.AuthReq,{token:S.token,device_id:S.device,platform:"web"})};
+  ws.onmessage=ev=>{lastRx=Date.now();feed(ev.data,f=>onFrame(f,v=>{hb=v*1000;retryAfter=0},ms=>retryAfter=ms,()=>ready(ws,()=>lastRx,()=>hb)))};
+  ws.onclose=()=>{
+    if(S.ws!==ws)return;setConn(false);S.timers.forEach(clearInterval);S.timers=[];
+    // 指数退避 + 抖动；被服务端 Kick 时遵循其 retry_after
+    const d=retryAfter||Math.min(30000,500*2**Math.min(S.retry++,6));setTimeout(connect,d/2+Math.random()*d/2);
+  };
+}
+function ready(ws,lastRx,hb){ // 认证成功后：心跳 + 假死检测 + 增量同步
+  S.retry=0;setConn(true);
+  S.timers.push(setInterval(()=>{
+    if(Date.now()-lastRx()>hb()*2.5){ws.close();return}  // 超过 2.5 个心跳没收到任何数据 → 连接已假死
+    rawReq(CMD.Heartbeat)},hb()));
+  syncAll();
+}
+function closeWS(){if(S.ws){const w=S.ws;S.ws=null;w.close()}S.timers.forEach(clearInterval)}
+function setConn(v){S.connected=v;$("dot").classList.toggle("on",v);$("dot").title=v?"已连接":"连接中断，重连中…"}
+function rawReq(cmd,body){const seq=++S.seq;if(S.ws&&S.ws.readyState===1)S.ws.send(encode(cmd,seq,body));return seq}
+function req(cmd,body,timeout=5000){ // 发请求并等待同 seq 的响应
+  return new Promise((res,rej)=>{
+    if(!S.ws||S.ws.readyState!==1||!S.connected)return rej(new Error("未连接"));
+    const seq=rawReq(cmd,body),t=setTimeout(()=>{S.pending.delete(seq);rej(new Error("超时"))},timeout);
+    S.pending.set(seq,f=>{clearTimeout(t);res(f)});
+  });
+}
+function onFrame(f,setHB,setRetry,onReady){
+  switch(f.cmd){
+    case CMD.AuthResp:
+      if(f.body.code!==0){toast("认证失败："+f.body.msg);logout(true);return}
+      setHB(f.body.heartbeat_sec||30);onReady();break;
+    case CMD.SendAck:case CMD.SyncResp:case CMD.ReadAck:case CMD.Err:{
+      const p=S.pending.get(f.seq);if(p){S.pending.delete(f.seq);p(f)}break}
+    case CMD.Push:
+      rawReq0(CMD.PushAck,f.seq,{msg_id:f.body.msg_id}); // 必须 ACK，否则服务端会重传
+      deliver(f.body);break;
+    case CMD.ReadNotify:onReadNotify(f.body);break;
+    case CMD.Kick:toast("连接被服务端关闭："+f.body.reason);setRetry(f.body.retry_after_ms||0);break;
+  }
+}
+function rawReq0(cmd,seq,body){if(S.ws&&S.ws.readyState===1)S.ws.send(encode(cmd,seq,body))}
+
+// ======================================================= 收件箱：游标 / 去重 / 补洞
+function deliver(p){
+  if(p.user_seq>0&&p.user_seq<=S.cursor)return;                 // 游标之前 → 重复
+  if(p.user_seq>0){
+    if(p.user_seq===S.cursor+1){S.cursor++;while(S.ahead.has(S.cursor+1)){S.ahead.delete(S.cursor+1);S.cursor++}}
+    else{S.ahead.add(p.user_seq);syncAll()}                        // 出现空洞 → 去服务端补
+  }
+  if(S.seen.has(p.msg_id))return;S.seen.add(p.msg_id);
+  applyMessage(p);
+}
+let syncing=false;
+async function syncAll(){
+  if(syncing)return;syncing=true;
+  try{for(;;){
+    const f=await req(CMD.SyncReq,{since:S.cursor,limit:100});
+    if(f.cmd!==CMD.SyncResp)break;
+    const r=f.body;r.msgs.forEach(deliver);
+    if(!r.has_more||!r.msgs.length)break;
+  }}catch(e){}finally{syncing=false}
+}
+
+// ======================================================= 消息落地与渲染
+async function applyMessage(p){
+  const mine=p.from_uid===S.me.uid;
+  let c=S.convs.get(p.conv_id);
+  if(!c){await refreshConvs(false);await refreshSocial();c=S.convs.get(p.conv_id)}  // 新会话：向服务端取元数据（标题等）
+  if(!c)return;
+  const list=S.msgs.get(p.conv_id)||[];
+  if(!list.some(m=>m.msg_id===p.msg_id)){list.push(p);list.sort((a,b)=>a.seq-b.seq);S.msgs.set(p.conv_id,list)}
+  if(p.from_name)S.names.set(p.from_uid,p.from_name);
+  const ob=S.outbox.get(p.conv_id);if(mine&&p.client_msg_id&&ob)S.outbox.set(p.conv_id,ob.filter(o=>o.cmid!==p.client_msg_id));
+  if(!c.last||p.seq>=c.last.seq)c.last=p;
+  c.lastSeq=Math.max(c.lastSeq||0,p.seq);   // 未读数 = lastSeq - read_seq，本地推导，不会重复累加
+  if(mine)c.read_seq=Math.max(c.read_seq||0,p.seq);              // 发消息即视为读过
+  if(S.active===p.conv_id&&!document.hidden)markRead(c);
+  renderSide();if(S.active===p.conv_id)renderMsgs(true);
+}
+async function markRead(c){
+  if(!c.lastSeq||c.read_seq>=c.lastSeq)return;
+  c.read_seq=c.lastSeq;renderSide();
+  try{await req(CMD.ReadReq,{conv_id:c.conv_id,seq:c.lastSeq})}catch(e){}
+}
+function onReadNotify(n){
+  const c=S.convs.get(n.conv_id);if(!c)return;
+  if(n.uid===S.me.uid){c.read_seq=Math.max(c.read_seq||0,n.seq)}      // 我的其他设备读过了
+  else if(c.type==="single"){c.peer_read_seq=Math.max(c.peer_read_seq||0,n.seq)} // 对方已读
+  renderSide();if(S.active===n.conv_id)renderMsgs(false);
+}
+
+// ======================================================= 渲染
+const avatar=s=>h("div",{class:"av"},(s||"?").trim().slice(0,1).toUpperCase());
+const fmt=ts=>{const d=new Date(ts),n=new Date(),p=x=>String(x).padStart(2,"0");return d.toDateString()===n.toDateString()?p(d.getHours())+":"+p(d.getMinutes()):(d.getMonth()+1)+"/"+d.getDate()};
+function renderSide(){
+  const box=$("list");box.replaceChildren();
+  const tools=$("tools");tools.replaceChildren();
+  document.querySelectorAll("#tabs div").forEach(d=>d.classList.toggle("on",d.dataset.t===S.tab));
+  if(S.tab==="convs"){
+    tools.append(h("button",{on:{click:newChat}},"+ 新聊天"));
+    [...S.convs.values()].sort((a,b)=>(b.last?b.last.send_time:0)-(a.last?a.last.send_time:0)).forEach(c=>{
+      const u=unread(c),pv=c.last?((c.type==="single"&&c.last.from_uid===S.me.uid?"我: ":"")+(c.type==="group"?(c.last.from_name||"")+": ":"")+c.last.content):"暂无消息";
+      box.append(h("div",{class:"item"+(S.active===c.conv_id?" on":""),on:{click:()=>openConv(c.conv_id)}},avatar(c.title),
+        h("div",{class:"mid"},h("div",{class:"t"},h("b",{},c.title||c.conv_id),h("small",{},c.last?fmt(c.last.send_time):"")),h("div",{class:"p"},pv)),
+        u?h("span",{class:"badge"},u>99?"99+":String(u)):""));
+    });
+    if(!S.convs.size)box.append(h("div",{class:"empty",style:"margin-top:40px"},"还没有会话"));
+  }else if(S.tab==="friends"){
+    tools.append(h("button",{on:{click:addFriend}},"+ 添加好友"));
+    S.friends.forEach(f=>box.append(h("div",{class:"item",on:{click:()=>{S.tab="convs";openConv(convOf(S.me.uid,f.uid),f.nickname)}}},avatar(f.nickname),
+      h("div",{class:"mid"},h("b",{},f.nickname),h("div",{class:"p"},"@"+f.username+"  uid "+f.uid)))));
+    if(!S.friends.length)box.append(h("div",{class:"empty",style:"margin-top:40px"},"还没有好友"));
+  }else{
+    tools.append(h("button",{on:{click:newGroup}},"+ 新建群"));
+    S.groups.forEach(g=>box.append(h("div",{class:"item",on:{click:()=>{S.tab="convs";openConv("g:"+g.id,g.name)}}},avatar(g.name),
+      h("div",{class:"mid"},h("b",{},g.name),h("div",{class:"p"},g.members.length+" 人  群 id "+g.id)))));
+    if(!S.groups.length)box.append(h("div",{class:"empty",style:"margin-top:40px"},"还没有群"));
+  }
+}
+document.querySelectorAll("#tabs div").forEach(d=>d.onclick=()=>{S.tab=d.dataset.t;renderSide()});
+
+function renderMsgs(stick){
+  const box=$("msgs"),c=S.convs.get(S.active);if(!c)return;
+  const near=box.scrollHeight-box.scrollTop-box.clientHeight<80;
+  box.replaceChildren();
+  const list=S.msgs.get(c.conv_id)||[];
+  if(list.length&&list[0].seq>1)box.append(h("button",{id:"older",on:{click:loadOlder}},"加载更早消息"));
+  if(!list.length&&!(S.outbox.get(c.conv_id)||[]).length)box.append(h("div",{class:"empty",style:"margin-top:20vh"},"还没有消息，打个招呼吧"));
+  const lastMine=[...list].reverse().find(m=>m.from_uid===S.me.uid);
+  list.forEach(m=>{
+    const mine=m.from_uid===S.me.uid;
+    let meta=fmt(m.send_time);
+    if(mine&&c.type==="single"&&lastMine&&m.msg_id===lastMine.msg_id)meta+=(c.peer_read_seq||0)>=m.seq?"  ✓✓ 已读":"  ✓ 已送达";
+    box.append(h("div",{class:"m"+(mine?" me":"")},h("div",{},
+      !mine&&c.type==="group"?h("div",{class:"who"},m.from_name||("uid "+m.from_uid)):"",
+      h("div",{class:"bub"},m.content),h("div",{class:"meta"},meta))));
+  });
+  (S.outbox.get(c.conv_id)||[]).forEach(o=>{
+    box.append(h("div",{class:"m me"},h("div",{},h("div",{class:"bub"},o.content),
+      o.status==="failed"?h("div",{class:"meta bad",on:{click:()=>doSend(c,o)}},"发送失败，点击重试"):h("div",{class:"meta"},"发送中…"))));
+  });
+  if(stick||near)box.scrollTop=box.scrollHeight;
+}
+
+// ======================================================= 会话操作
+async function openConv(convId,titleHint){
+  let c=S.convs.get(convId);
+  if(!c){ // 还没有消息的新会话：本地占位
+    const isG=convId.startsWith("g:"),parts=convId.split(":");
+    const peer=isG?0:(+parts[1]===S.me.uid?+parts[2]:+parts[1]);
+    c={conv_id:convId,type:isG?"group":"single",title:titleHint||S.names.get(peer)||convId,peer_uid:peer,group_id:isG?+parts[1]:0,read_seq:0,lastSeq:0,unread:0};
+    S.convs.set(convId,c);
+  }
+  S.active=convId;document.body.classList.add("chat");
+  $("title").textContent=c.title;$("text").disabled=$("send").disabled=false;$("back").style.display="";
+  const ht=$("headtools");ht.replaceChildren();
+  if(c.type==="group"){
+    ht.append(h("button",{on:{click:()=>inviteMember(c)}},"邀请"),h("button",{style:"margin-left:6px",on:{click:()=>leaveGroup(c)}},"退群"));
+  }
+  renderSide();
+  try{
+    const d=await api("GET","/api/messages?limit=50&conv="+encodeURIComponent(convId));
+    const list=S.msgs.get(convId)||[];
+    d.messages.forEach(m=>{if(!list.some(x=>x.msg_id===m.msg_id))list.push(m)});
+    list.sort((a,b)=>a.seq-b.seq);S.msgs.set(convId,list);
+    if(list.length){c.lastSeq=Math.max(c.lastSeq||0,list[list.length-1].seq);if(!c.last)c.last=list[list.length-1]}
+  }catch(e){}
+  renderMsgs(true);markRead(c);$("text").focus();
+}
+$("back").onclick=()=>{document.body.classList.remove("chat")};
+async function loadOlder(){
+  const list=S.msgs.get(S.active)||[];if(!list.length)return;
+  const d=await api("GET","/api/messages?limit=50&conv="+encodeURIComponent(S.active)+"&before_seq="+list[0].seq);
+  d.messages.forEach(m=>{if(!list.some(x=>x.msg_id===m.msg_id))list.push(m)});
+  list.sort((a,b)=>a.seq-b.seq);renderMsgs(false);
+}
+
+// ---- 发送：本地回显 → ServerAck → 超时用同一个 client_msg_id 重试（服务端幂等）
+function send(){
+  const t=$("text"),c=S.convs.get(S.active),text=t.value.trim();if(!c||!text)return;
+  t.value="";
+  const o={cmid:(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()),content:text,status:"sending"};
+  S.outbox.set(c.conv_id,[...(S.outbox.get(c.conv_id)||[]),o]);renderMsgs(true);doSend(c,o);
+}
+async function doSend(c,o){
+  o.status="sending";renderMsgs(false);
+  const body={client_msg_id:o.cmid,msg_type:1,content:o.content};
+  if(c.type==="group")body.group_id=c.group_id;else body.to_uid=c.peer_uid;
+  const drop=()=>S.outbox.set(c.conv_id,(S.outbox.get(c.conv_id)||[]).filter(x=>x!==o));
+  for(let i=0;i<3;i++){
+    try{
+      const f=await req(CMD.SendReq,body,4000);
+      if(f.cmd===CMD.SendAck){
+        const a=f.body;
+        if(a.code===0){ // 成功；若回显推送已先到则清掉发件箱，否则等回显来替换
+          if((S.msgs.get(c.conv_id)||[]).some(m=>m.msg_id===a.msg_id))drop();
+          renderMsgs(false);return}
+        if(a.code!==1003&&a.code!==1500){drop();toast("发送被拒绝："+(a.msg||a.code));renderMsgs(false);return} // 业务错误，不重试
+      }
+    }catch(e){await new Promise(r=>setTimeout(r,500*(i+1)))}
+  }
+  o.status="failed";renderMsgs(false);
+}
+$("send").onclick=send;
+$("text").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
+document.addEventListener("visibilitychange",()=>{const c=S.convs.get(S.active);if(!document.hidden&&c)markRead(c)});
+
+// ======================================================= 好友 / 群
+async function newChat(){
+  const n=prompt("对方用户名：");if(!n)return;
+  try{const u=await api("GET","/api/users/search?username="+encodeURIComponent(n.trim()));S.names.set(u.uid,u.nickname);openConv(convOf(S.me.uid,u.uid),u.nickname)}catch(e){toast(e.message)}
+}
+async function addFriend(){
+  const n=prompt("要添加的用户名：");if(!n)return;
+  try{await api("POST","/api/friends",{username:n.trim()});await refreshSocial();renderSide();toast("已添加好友")}catch(e){toast(e.message)}
+}
+async function newGroup(){
+  const name=prompt("群名称：");if(!name)return;
+  const ms=prompt("成员用户名（逗号分隔，不含你自己）：","")||"";
+  try{const g=await api("POST","/api/groups",{name,member_usernames:ms.split(",").map(s=>s.trim()).filter(Boolean)});
+    await refreshConvs(false);await refreshSocial();S.tab="convs";openConv("g:"+g.id,g.name)}catch(e){toast(e.message)}
+}
+async function inviteMember(c){
+  const n=prompt("邀请谁（用户名，仅群主可操作）：");if(!n)return;
+  try{await api("POST","/api/groups/"+c.group_id+"/members",{username:n.trim()});await refreshSocial();toast("已邀请")}catch(e){toast(e.message)}
+}
+async function leaveGroup(c){
+  if(!confirm("确定退出该群？"))return;
+  try{await api("POST","/api/groups/"+c.group_id+"/leave");S.convs.delete(c.conv_id);S.active=null;
+    $("title").textContent="选择一个会话";$("headtools").replaceChildren();$("msgs").replaceChildren();$("text").disabled=$("send").disabled=true;
+    await refreshSocial();renderSide()}catch(e){toast(e.message)}
+}
+
+if(S.token&&S.me)start().catch(()=>logout(true));
+</script>
+</body>
+</html>
