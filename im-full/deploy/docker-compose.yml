@@ -1,0 +1,21 @@
+# 用法：  docker compose -f deploy/docker-compose.yml up -d --build
+services:
+  im:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: im-server:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # Web 客户端 / HTTP API / WebSocket(/ws)
+      - "9000:9000"   # 原生 TCP 长连接
+    volumes:
+      - im-data:/data
+    environment:
+      IM_ALLOW_REGISTER: "true"
+      IM_REQUIRE_FRIEND: "false"
+      IM_LOG_LEVEL: "info"
+    # 首次想要演示账号：把下一行取消注释（创建 alice/bob/carol，密码 123456）
+    # command: ["-seed"]
+volumes:
+  im-data:

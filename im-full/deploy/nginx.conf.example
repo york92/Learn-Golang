@@ -1,0 +1,33 @@
+# Nginx 反向代理示例：HTTPS + WebSocket。
+# 注意：网关默认只允许与页面同源的 WebSocket（Origin 必须等于 Host），
+# 所以必须把 Host 头原样传给后端（proxy_set_header Host $host）。
+
+upstream im_http { server 127.0.0.1:8080; keepalive 32; }
+
+server {
+    listen 443 ssl http2;
+    server_name im.example.com;
+    ssl_certificate     /etc/letsencrypt/live/im.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/im.example.com/privkey.pem;
+
+    location /ws {
+        proxy_pass http://im_http;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 120s;   # 必须大于心跳间隔(默认30s)的 2.5 倍
+        proxy_send_timeout 120s;
+    }
+    location / {
+        proxy_pass http://im_http;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# 原生 TCP 长连接（App 用）：用 stream 模块做 L4 转发（如需 TLS 终止，在这里加 ssl 配置）
+# stream {
+#     server { listen 9000; proxy_pass 127.0.0.1:9000; proxy_timeout 300s; }
+# }

@@ -1,0 +1,20 @@
+{
+  "tcp_addr": ":9000",
+  "http_addr": ":8080",
+  "data_dir": "./data",
+
+  "allow_register": true,
+  "require_friend": false,
+  "token_ttl_hours": 720,
+  "auth_per_minute": 60,
+
+  "heartbeat_sec": 30,
+  "max_conns": 100000,
+  "max_content_bytes": 4096,
+  "fsync_ms": 200,
+
+  "ws_allow_any_origin": false,
+
+  "log_level": "info",
+  "log_format": "text"
+}
